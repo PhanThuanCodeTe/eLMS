@@ -1,0 +1,51 @@
+<!-- templates/home.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        .container {
+            margin: 0 auto;
+            max-width: 600px;
+        }
+        .gif-wrapper {
+            display: inline-block;
+            width: 480px;
+            height: 480px;
+            border-radius: 50%; /* Làm cho hình tròn */
+            overflow: hidden; /* Ẩn phần bên ngoài hình tròn */
+        }
+        .gif-wrapper iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .link {
+            display: block;
+            margin-top: 20px;
+            font-size: 18px; /* Kích thước chữ lớn hơn */
+            color: red; /* Màu chữ */
+            text-decoration: none; /* Xóa gạch dưới */
+        }
+        .link:hover {
+            color: blue; /* Màu chữ khi hover */
+            text-decoration: none; /* Thêm gạch dưới khi hover */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="gif-wrapper">
+            <iframe src="https://giphy.com/embed/tHIRLHtNwxpjIFqPdV" frameBorder="0" class="giphy-embed" allowFullScreen></iframe>
+        </div>
+        <p><a href="{% url 'admin:index' %}" class="link">Đi đến AdminSite</a></p>
+    </div>
+</body>
+</html>
