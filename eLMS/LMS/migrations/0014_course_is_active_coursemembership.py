@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('LMS', '0013_essayanswer_user'),
     ]
@@ -25,8 +24,12 @@ class Migration(migrations.Migration):
                 ('finish_date', models.DateField(blank=True, null=True)),
                 ('progress', models.DecimalField(decimal_places=2, default=0.0, max_digits=5)),
                 ('is_active', models.BooleanField(default=True)),
-                ('course', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='course_memberships', to='LMS.course')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='course_memberships', to=settings.AUTH_USER_MODEL)),
+                ('course',
+                 models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='course_memberships',
+                                   to='LMS.course')),
+                ('user',
+                 models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='course_memberships',
+                                   to=settings.AUTH_USER_MODEL)),
             ],
             options={
                 'unique_together': {('user', 'course')},

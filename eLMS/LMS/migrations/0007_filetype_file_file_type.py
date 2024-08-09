@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('LMS', '0006_file'),
     ]
@@ -21,6 +20,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='file',
             name='file_type',
-            field=models.ForeignKey(default=1, on_delete=django.db.models.deletion.CASCADE, related_name='files', to='LMS.filetype'),
+            field=models.ForeignKey(default=1, on_delete=django.db.models.deletion.CASCADE, related_name='files',
+                                    to='LMS.filetype'),
         ),
     ]

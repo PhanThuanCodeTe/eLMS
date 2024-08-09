@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('LMS', '0011_module_created_at_alter_course_title_and_more'),
     ]

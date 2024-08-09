@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('LMS', '0007_filetype_file_file_type'),
     ]
@@ -17,7 +16,8 @@ class Migration(migrations.Migration):
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('name', models.CharField(blank=True, max_length=255, null=True)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('module', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='tests', to='LMS.module')),
+                ('module',
+                 models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='tests', to='LMS.module')),
             ],
             options={
                 'ordering': ['created_at'],

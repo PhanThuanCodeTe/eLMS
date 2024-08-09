@@ -1,26 +1,26 @@
 # Nơi tạo model để ánh xạ xuống csdl
 # eLMS/LMS/models.py
 
+import cloudinary
+import cloudinary.api
+import cloudinary.uploader
+from ckeditor.fields import RichTextField
+from cloudinary.models import CloudinaryField
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.db import models
-from cloudinary.models import CloudinaryField
-import cloudinary
-import cloudinary.uploader
-import cloudinary.api
-from ckeditor.fields import RichTextField
-from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 
 # Model lưu User lấy từ mẫu có sẵn từ Django
 class User(AbstractUser):
     email = models.EmailField(unique=True)  # email
-    avatar = CloudinaryField('avatar', blank=True, null=True)   # Avatar bắt buộc
-    gender = models.IntegerField(choices=[(0, 'Male'), (1, 'Female')], default=0)   # Giới tính
-    role = models.IntegerField(choices=[(0, 'Student'), (1, 'Teacher')], default=0) # Vai trò (Student = người học, Teacher = giáo viên)
+    avatar = CloudinaryField('avatar', blank=True, null=True)  # Avatar bắt buộc
+    gender = models.IntegerField(choices=[(0, 'Male'), (1, 'Female')], default=0)  # Giới tính
+    role = models.IntegerField(choices=[(0, 'Student'), (1, 'Teacher')],
+                               default=0)  # Vai trò (Student = người học, Teacher = giáo viên)
 
-    USERNAME_FIELD = 'email'    # lấy email để đăng nhập
+    USERNAME_FIELD = 'email'  # lấy email để đăng nhập
     REQUIRED_FIELDS = ['username']
 
     def __str__(self):
@@ -43,10 +43,10 @@ class User(AbstractUser):
 
 # Model lưu danh mục
 class Category(models.Model):
-    name = models.CharField(max_length=255, unique=True)    # Tên danh mục
-    description = models.TextField(blank=True, null=True)   # Mô tả để đây để mai mốt ghi vô chứ không biết
-    created_at = models.DateTimeField(auto_now_add=True)    # Ngày tạo
-    updated_at = models.DateTimeField(auto_now=True)    # Ngày cập nhật
+    name = models.CharField(max_length=255, unique=True)  # Tên danh mục
+    description = models.TextField(blank=True, null=True)  # Mô tả để đây để mai mốt ghi vô chứ không biết
+    created_at = models.DateTimeField(auto_now_add=True)  # Ngày tạo
+    updated_at = models.DateTimeField(auto_now=True)  # Ngày cập nhật
 
     def __str__(self):
         return self.name
@@ -54,12 +54,12 @@ class Category(models.Model):
 
 # Model lưu Khóa học
 class Course(models.Model):
-    title = models.CharField(max_length=100)    # Tên khóa học
+    title = models.CharField(max_length=100)  # Tên khóa học
     cover_image = CloudinaryField('cover_image')  # Ảnh bìa khóa học
-    description = models.TextField()    # Mô tả khóa học
+    description = models.TextField()  # Mô tả khóa học
     categories = models.ManyToManyField(Category, related_name='courses')  # Quan hệ nhiều - nhiều với Category
-    created_at = models.DateTimeField(auto_now_add=True)    # Ngày tạo
-    updated_at = models.DateTimeField(auto_now=True)    # Ngày cập nhật
+    created_at = models.DateTimeField(auto_now_add=True)  # Ngày tạo
+    updated_at = models.DateTimeField(auto_now=True)  # Ngày cập nhật
     is_active = models.BooleanField(default=True)  # Trạng thái của khóa học
 
     # Hàm tự động tạo Forum cho khóa học
@@ -75,8 +75,9 @@ class Course(models.Model):
 
 # Model quản lý Module của từng khóa học
 class Module(models.Model):
-    course = models.ForeignKey(Course, related_name='modules', on_delete=models.CASCADE)    # Khóa ngoại đến Course thuộc khóa học nào / n - 1
-    title = models.CharField(max_length=100, blank=True, null=True) # Tên module
+    course = models.ForeignKey(Course, related_name='modules',
+                               on_delete=models.CASCADE)  # Khóa ngoại đến Course thuộc khóa học nào / n - 1
+    title = models.CharField(max_length=100, blank=True, null=True)  # Tên module
     youtube_url = models.URLField()  # URL YouTube (bắt buộc)
     description = RichTextField()  # Mô tả bài học | CKEditor
     created_at = models.DateTimeField(default=timezone.now)  # Ngày tạo dùng để sắp xếp thứ tự module
@@ -87,7 +88,8 @@ class Module(models.Model):
 
 # Model lưu Forum của từng khóa học
 class Forum(models.Model):
-    course = models.OneToOneField(Course, on_delete=models.CASCADE, related_name='forum') # Tôi không biết tạo ra forum để làm gì nhưng dùng cho mục đích sau này
+    course = models.OneToOneField(Course, on_delete=models.CASCADE,
+                                  related_name='forum')  # Tôi không biết tạo ra forum để làm gì nhưng dùng cho mục đích sau này
 
     def __str__(self):
         return f"Forum for {self.course.title}"
@@ -95,11 +97,13 @@ class Forum(models.Model):
 
 # Model lưu câu hỏi trong khóa học
 class Post(models.Model):
-    forum = models.ForeignKey(Forum, on_delete=models.CASCADE, related_name='posts')    # Khóa ngoại đến Forum xác định xem thuộc Forum nào / 1 - n
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='posts')  # Khóa ngoại đến User xác định ai đăng / 1 - n
-    title = models.CharField(max_length=255)    # Tiêu đề câu hỏi
-    body = models.TextField()   # Nội dung câu hỏi
-    created_at = models.DateTimeField(auto_now_add=True)    # Ngày tạo
+    forum = models.ForeignKey(Forum, on_delete=models.CASCADE,
+                              related_name='posts')  # Khóa ngoại đến Forum xác định xem thuộc Forum nào / 1 - n
+    user = models.ForeignKey(User, on_delete=models.CASCADE,
+                             related_name='posts')  # Khóa ngoại đến User xác định ai đăng / 1 - n
+    title = models.CharField(max_length=255)  # Tiêu đề câu hỏi
+    body = models.TextField()  # Nội dung câu hỏi
+    created_at = models.DateTimeField(auto_now_add=True)  # Ngày tạo
 
     def __str__(self):
         return self.title
@@ -107,15 +111,17 @@ class Post(models.Model):
 
 # Model lưu câu trả lời cho câu hỏi
 class Reply(models.Model):
-    question = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='replies')    # Khóa ngoại đến Post xác định câu hỏi nào / 1 - n
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='replies')    # Khóa ngoại đến User xác định ai trả lời / 1 - n
-    body = models.TextField()   # Nội dung câu trả lời
-    created_at = models.DateTimeField(auto_now_add=True)    # Ngày tạo
+    question = models.ForeignKey(Post, on_delete=models.CASCADE,
+                                 related_name='replies')  # Khóa ngoại đến Post xác định câu hỏi nào / 1 - n
+    user = models.ForeignKey(User, on_delete=models.CASCADE,
+                             related_name='replies')  # Khóa ngoại đến User xác định ai trả lời / 1 - n
+    body = models.TextField()  # Nội dung câu trả lời
+    created_at = models.DateTimeField(auto_now_add=True)  # Ngày tạo
 
     def __str__(self):
         return f"Reply to {self.question.title} by {self.user.username}"
 
-    #Hàm tự động tạo 1 Thông báo khi một người trả lời câu hỏi
+    # Hàm tự động tạo 1 Thông báo khi một người trả lời câu hỏi
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         Notification.objects.create(
@@ -127,10 +133,11 @@ class Reply(models.Model):
 
 # Model lưu thông báo
 class Notification(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications') # Khóa ngoại đến User xác định ai trả lời / 1 - n
-    message = models.TextField()    # Nội dung thông báo
-    created_at = models.DateTimeField(auto_now_add=True)    # Ngày tạo
-    is_read = models.BooleanField(default=False)    # Đã dọc hay chưa
+    user = models.ForeignKey(User, on_delete=models.CASCADE,
+                             related_name='notifications')  # Khóa ngoại đến User xác định ai trả lời / 1 - n
+    message = models.TextField()  # Nội dung thông báo
+    created_at = models.DateTimeField(auto_now_add=True)  # Ngày tạo
+    is_read = models.BooleanField(default=False)  # Đã dọc hay chưa
 
     def __str__(self):
         return f"Notification for {self.user.username} about {self.message}"
@@ -144,7 +151,7 @@ class Notification(models.Model):
 
 # Model quản lý các loại File
 class FileType(models.Model):
-    name = models.CharField(max_length=50, default="Liên kết") # Tên
+    name = models.CharField(max_length=50, default="Liên kết")  # Tên
 
     def __str__(self):
         return self.name
@@ -152,9 +159,11 @@ class FileType(models.Model):
 
 # Model quản lý các file trong module
 class File(models.Model):
-    module = models.ForeignKey(Module, related_name='files', on_delete=models.CASCADE) # Khóa ngoại đến Module xác định thuộc module nào / 1 - n
-    file_url = models.URLField()    # Đường link File
-    file_type = models.ForeignKey(FileType, related_name='files', on_delete=models.CASCADE, default=1)  # Khóa ngoại đến FileType xác định loại File \ 1 - 1
+    module = models.ForeignKey(Module, related_name='files',
+                               on_delete=models.CASCADE)  # Khóa ngoại đến Module xác định thuộc module nào / 1 - n
+    file_url = models.URLField()  # Đường link File
+    file_type = models.ForeignKey(FileType, related_name='files', on_delete=models.CASCADE,
+                                  default=1)  # Khóa ngoại đến FileType xác định loại File \ 1 - 1
 
     def __str__(self):
         return f"File for {self.module.title}"
@@ -167,9 +176,10 @@ class Test(models.Model):
         (1, 'Tự luận'),
     ]
 
-    module = models.ForeignKey(Module, related_name='tests', on_delete=models.CASCADE)  # Khóa ngoại đến Module xác định thuộc module nào / 1 - n
-    name = models.CharField(max_length=255, blank=True, null=True) # Tên bài kiểm tra
-    created_at = models.DateTimeField(auto_now_add=True)    # Ngày tạo
+    module = models.ForeignKey(Module, related_name='tests',
+                               on_delete=models.CASCADE)  # Khóa ngoại đến Module xác định thuộc module nào / 1 - n
+    name = models.CharField(max_length=255, blank=True, null=True)  # Tên bài kiểm tra
+    created_at = models.DateTimeField(auto_now_add=True)  # Ngày tạo
     num_questions = models.PositiveIntegerField(default=0)  # Số lượng câu hỏi trong bài Test
     test_type = models.IntegerField(choices=TEST_TYPES, default=0)  # Loại bài kiểm tra ("Trắc ngiệm", "Tự luận")
 
@@ -193,8 +203,9 @@ class Question(models.Model):
         (1, 'Tự luận'),
     ]
 
-    test = models.ForeignKey(Test, related_name='questions', on_delete=models.CASCADE)  # Khóa ngoại đến Test xác định thuộc bài kiểm tra nào / 1 - n
-    content = RichTextField()   # Nội dung câu hỏi
+    test = models.ForeignKey(Test, related_name='questions',
+                             on_delete=models.CASCADE)  # Khóa ngoại đến Test xác định thuộc bài kiểm tra nào / 1 - n
+    content = RichTextField()  # Nội dung câu hỏi
     type = models.IntegerField(choices=QUESTION_TYPES)  # Loại câu hỏi
 
     # Hàm quản lý tạo câu hỏi
@@ -221,9 +232,10 @@ class Question(models.Model):
 
 # Model quản lý câu trả lời cho câu hỏi trắc nghiệm
 class Answer(models.Model):
-    question = models.ForeignKey(Question, related_name='answers', on_delete=models.CASCADE)    # Khóa ngoại đến Question xác định câu hỏi / 1 - 4
-    choice = models.TextField() # Nội dung đáp án
-    is_correct = models.BooleanField(default=False) # True => Đây là câu trả ời đúng
+    question = models.ForeignKey(Question, related_name='answers',
+                                 on_delete=models.CASCADE)  # Khóa ngoại đến Question xác định câu hỏi / 1 - 4
+    choice = models.TextField()  # Nội dung đáp án
+    is_correct = models.BooleanField(default=False)  # True => Đây là câu trả ời đúng
 
     # Hàm quản lý lưu => không có đáp án trắc nghiệm trong câu tự luận và số đáp án không được vượt quá 4
     def save(self, *args, **kwargs):
@@ -240,8 +252,10 @@ class Answer(models.Model):
 
 
 class EssayAnswer(models.Model):
-    question = models.OneToOneField('Question', on_delete=models.CASCADE)  # Khóa ngoại đến Question xác định câu hỏi tự luận
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='essay_answers')  # Khoá ngoại đến User xác định user nào làm bài
+    question = models.OneToOneField('Question',
+                                    on_delete=models.CASCADE)  # Khóa ngoại đến Question xác định câu hỏi tự luận
+    user = models.ForeignKey(User, on_delete=models.CASCADE,
+                             related_name='essay_answers')  # Khoá ngoại đến User xác định user nào làm bài
     answer_text = RichTextField()  # Ô trả lời
     teacher_comments = RichTextField(blank=True, null=True)  # Nhận xét của giáo viên
     score = models.IntegerField(default=0)  # Trường điểm, giá trị mặc định là 0, số nguyên từ 0 đến 100
@@ -260,10 +274,11 @@ class EssayAnswer(models.Model):
             score_record.save()
 
 
-
 class CourseMembership(models.Model):
-    user = models.ForeignKey(User, related_name='course_memberships', on_delete=models.CASCADE) # Khóa ngoại đến User xác định user nào đăng ký khóa học / n - n
-    course = models.ForeignKey('Course', related_name='course_memberships', on_delete=models.CASCADE)   # Khóa ngoại đến Course xác định đăng ký khóa học nào / n - n
+    user = models.ForeignKey(User, related_name='course_memberships',
+                             on_delete=models.CASCADE)  # Khóa ngoại đến User xác định user nào đăng ký khóa học / n - n
+    course = models.ForeignKey('Course', related_name='course_memberships',
+                               on_delete=models.CASCADE)  # Khóa ngoại đến Course xác định đăng ký khóa học nào / n - n
     attend_date = models.DateField()  # Ngày tham gia khóa học
     finish_date = models.DateField(blank=True, null=True)  # Ngày hoàn thành khóa học (có thể để trống)
     progress = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)  # Tiến độ học tập, mặc định là 0%

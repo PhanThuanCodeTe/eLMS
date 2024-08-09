@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('LMS', '0016_studentscore'),
     ]
@@ -17,7 +16,9 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('is_correct', models.BooleanField(default=False)),
-                ('question', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='student_answers', to='LMS.question')),
+                ('question',
+                 models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='student_answers',
+                                   to='LMS.question')),
                 ('selected_answer', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='LMS.answer')),
                 ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
             ],

@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('LMS', '0004_module'),
     ]
@@ -16,7 +15,8 @@ class Migration(migrations.Migration):
             name='Forum',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('course', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='forum', to='LMS.course')),
+                ('course', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='forum',
+                                                to='LMS.course')),
             ],
         ),
         migrations.CreateModel(
@@ -26,7 +26,8 @@ class Migration(migrations.Migration):
                 ('message', models.TextField()),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('is_read', models.BooleanField(default=False)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='notifications', to=settings.AUTH_USER_MODEL)),
+                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='notifications',
+                                           to=settings.AUTH_USER_MODEL)),
             ],
         ),
         migrations.CreateModel(
@@ -36,8 +37,10 @@ class Migration(migrations.Migration):
                 ('title', models.CharField(max_length=255)),
                 ('body', models.TextField()),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('forum', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='posts', to='LMS.forum')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='posts', to=settings.AUTH_USER_MODEL)),
+                ('forum',
+                 models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='posts', to='LMS.forum')),
+                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='posts',
+                                           to=settings.AUTH_USER_MODEL)),
             ],
         ),
         migrations.CreateModel(
@@ -46,8 +49,10 @@ class Migration(migrations.Migration):
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('body', models.TextField()),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('question', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='replies', to='LMS.post')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='replies', to=settings.AUTH_USER_MODEL)),
+                ('question',
+                 models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='replies', to='LMS.post')),
+                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='replies',
+                                           to=settings.AUTH_USER_MODEL)),
             ],
         ),
     ]

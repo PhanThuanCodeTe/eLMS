@@ -24,7 +24,7 @@ class CustomUserAdmin(UserAdmin):
         (None, {
             'classes': ('wide',),
             'fields': ('email', 'password1', 'password2', 'avatar', 'gender', 'role')}
-        ),
+         ),
     )
     list_display = ('id', 'email', 'first_name', 'last_name', 'is_staff', 'role')
     search_fields = ('email', 'first_name', 'last_name')

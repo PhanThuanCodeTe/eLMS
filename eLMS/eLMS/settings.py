@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
 from pathlib import Path
+
 import cloudinary
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -95,7 +96,7 @@ WSGI_APPLICATION = 'eLMS.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-#Configs Database
+# Configs Database
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',

@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('LMS', '0003_course'),
     ]
@@ -19,7 +18,8 @@ class Migration(migrations.Migration):
                 ('title', models.CharField(max_length=255)),
                 ('youtube_url', models.URLField()),
                 ('description', ckeditor.fields.RichTextField()),
-                ('course', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='modules', to='LMS.course')),
+                ('course', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='modules',
+                                             to='LMS.course')),
             ],
         ),
     ]
