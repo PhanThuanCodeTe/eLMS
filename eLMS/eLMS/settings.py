@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
 from pathlib import Path
-
+from decouple import config
 import cloudinary
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -46,13 +46,14 @@ INSTALLED_APPS = [
     'cloudinary_storage',
     'ckeditor',
     'ckeditor_uploader',
-    # 'rest_framework',
+    'rest_framework',
+    'oauth2_provider',
 ]
 
 cloudinary.config(
-    cloud_name="dxtj3bfv3",
-    api_key="916449463295282",
-    api_secret="EJIYlS-dcehiSaCPhlkEt_IxueU",  # Click 'View Credentials' below to copy your API secret
+    cloud_name=config('CLOUDINARY_CLOUD_NAME'),
+    api_key=config('CLOUDINARY_API_KEY'),
+    api_secret=config('CLOUDINARY_API_SECRET'),
     secure=True
 )
 
@@ -66,6 +67,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'oauth2_provider.middleware.OAuth2TokenMiddleware',
 ]
 
 CKEDITOR_UPLOAD_PATH = 'static/uploads/'
@@ -146,3 +148,15 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+OAUTH2_PROVIDER = {
+    'ACCESS_TOKEN_EXPIRE_SECONDS': 36000,  # Thời gian hết hạn của access token
+    'REFRESH_TOKEN_EXPIRE_SECONDS': 36000,  # Thời gian hết hạn của refresh token
+    'AUTHORIZATION_CODE_EXPIRE_SECONDS': 600,  # Thời gian hết hạn của authorization code
+}
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
+    ),
+}
