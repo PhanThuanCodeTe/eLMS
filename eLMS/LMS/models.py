@@ -1,5 +1,6 @@
 # Nơi tạo model để ánh xạ xuống csdl
 # eLMS/LMS/models.py
+from datetime import date
 
 import cloudinary
 import cloudinary.api
@@ -19,6 +20,7 @@ class User(AbstractUser):
     gender = models.IntegerField(choices=[(0, 'Male'), (1, 'Female')], default=0)  # Giới tính
     role = models.IntegerField(choices=[(0, 'Student'), (1, 'Teacher')],
                                default=0)  # Vai trò (Student = người học, Teacher = giáo viên)
+    date_of_birth = models.DateField(null=True, blank=True)
 
     USERNAME_FIELD = 'email'  # lấy email để đăng nhập
     REQUIRED_FIELDS = ['username']
@@ -39,6 +41,8 @@ class User(AbstractUser):
             raise ValidationError("Không đúng định dạng email!")
         if not self.avatar:
             raise ValidationError("Bạn phải nhập avatar!")
+        if self.date_of_birth and self.date_of_birth > date.today():
+            raise ValidationError("Date of birth cannot be in the future.")
 
 
 # Model lưu danh mục
@@ -61,6 +65,7 @@ class Course(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)  # Ngày tạo
     updated_at = models.DateTimeField(auto_now=True)  # Ngày cập nhật
     is_active = models.BooleanField(default=True)  # Trạng thái của khóa học
+    author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='courses')  # Tác giả khóa học
 
     # Hàm tự động tạo Forum cho khóa học
     def save(self, *args, **kwargs):
@@ -149,24 +154,37 @@ class Notification(models.Model):
         super().save(*args, **kwargs)
 
 
-# Model quản lý các loại File
-class FileType(models.Model):
-    name = models.CharField(max_length=50, default="Liên kết")  # Tên
-
-    def __str__(self):
-        return self.name
-
-
 # Model quản lý các file trong module
 class File(models.Model):
-    module = models.ForeignKey(Module, related_name='files',
-                               on_delete=models.CASCADE)  # Khóa ngoại đến Module xác định thuộc module nào / 1 - n
-    file_url = models.URLField()  # Đường link File
-    file_type = models.ForeignKey(FileType, related_name='files', on_delete=models.CASCADE,
-                                  default=1)  # Khóa ngoại đến FileType xác định loại File \ 1 - 1
+    FILE_TYPES = [
+        ('Tập tin', 'Tập tin'),
+        ('Liên kết', 'Liên kết'),
+    ]
+
+    module = models.ForeignKey(Module, related_name='files', on_delete=models.CASCADE)  # Khóa ngoại đến Module
+    file_url = models.URLField(blank=True, null=True)  # Đường link File, giờ có thể để trống
+    file = models.FileField(upload_to='uploads/files/', blank=True, null=True)  # Trường lưu file thực tế (PDF, DOCX, TXT)
+    file_type = models.CharField(max_length=10, choices=FILE_TYPES, editable=False)  # Loại File, tự động đặt là "Tập tin" hoặc "Liên kết"
 
     def __str__(self):
-        return f"File for {self.module.title}"
+        if self.file:
+            return f"File for {self.module.title} - {self.file.name}"
+        return f"Link for {self.module.title} - {self.file_url}"
+
+    # Đảm bảo chỉ có một trong hai trường `file_url` hoặc `file` được nhập
+    def clean(self):
+        if self.file_url and self.file:
+            raise ValidationError("Bạn chỉ có thể cung cấp một tập tin hoặc một liên kết, không thể cả hai.")
+        if not self.file_url and not self.file:
+            raise ValidationError("Bạn phải cung cấp một tập tin hoặc một liên kết.")
+
+    # Ghi đè phương thức save để tự động đặt giá trị `file_type`
+    def save(self, *args, **kwargs):
+        if self.file:
+            self.file_type = 'Tập tin'
+        elif self.file_url:
+            self.file_type = 'Liên kết'
+        super().save(*args, **kwargs)
 
 
 # Model quản lý các bài kiểm tra trong Module
@@ -203,21 +221,22 @@ class Question(models.Model):
         (1, 'Tự luận'),
     ]
 
-    test = models.ForeignKey(Test, related_name='questions',
-                             on_delete=models.CASCADE)  # Khóa ngoại đến Test xác định thuộc bài kiểm tra nào / 1 - n
-    content = RichTextField()  # Nội dung câu hỏi
-    type = models.IntegerField(choices=QUESTION_TYPES)  # Loại câu hỏi
+    test = models.ForeignKey(Test, related_name='questions', on_delete=models.CASCADE)
+    content = RichTextField()
+    type = models.IntegerField(choices=QUESTION_TYPES)
 
-    # Hàm quản lý tạo câu hỏi
     def save(self, *args, **kwargs):
-        # Check xem loại bài kiểm tra là gì thì chỉ có câu hỏi đó thôi
+        # Debugging output
+        print("Question Type:", self.type)
+        print("Test Type:", self.test.test_type)
+
+        # Validate question type matches the test type
         if self.test.test_type == 0 and self.type != 0:
             raise ValidationError("For multiple choice tests, only multiple choice questions are allowed.")
         elif self.test.test_type == 1 and self.type != 1:
             raise ValidationError("For essay tests, only essay questions are allowed.")
 
         super().save(*args, **kwargs)
-        # Update number of questions in test
         self.test.update_num_questions()
 
     # Xóa thì cập nhật trên Test
@@ -232,19 +251,17 @@ class Question(models.Model):
 
 # Model quản lý câu trả lời cho câu hỏi trắc nghiệm
 class Answer(models.Model):
-    question = models.ForeignKey(Question, related_name='answers',
-                                 on_delete=models.CASCADE)  # Khóa ngoại đến Question xác định câu hỏi / 1 - 4
-    choice = models.TextField()  # Nội dung đáp án
-    is_correct = models.BooleanField(default=False)  # True => Đây là câu trả ời đúng
+    question = models.ForeignKey(Question, related_name='answers', on_delete=models.CASCADE)
+    choice = models.TextField()  # Content of the answer choice
+    is_correct = models.BooleanField(default=False)  # True if this is a correct answer
 
-    # Hàm quản lý lưu => không có đáp án trắc nghiệm trong câu tự luận và số đáp án không được vượt quá 4
     def save(self, *args, **kwargs):
+        # Check that the question is not an essay question
         if self.question.type != 0:
-            raise ValidationError("Câu hỏi tự luận không có đáp án!")
+            raise ValidationError(
+                "Câu hỏi tự luận không có đáp án!")  # "Essay questions do not have multiple-choice answers!"
 
-        if self.question.answers.count() >= 4:
-            raise ValidationError("Số lượng đáp án không được vượt quá 4!")
-
+        # Remove the restriction on the number of answers
         super().save(*args, **kwargs)
 
     def __str__(self):
