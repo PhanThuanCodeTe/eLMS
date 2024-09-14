@@ -6,7 +6,7 @@ from django.contrib.auth.admin import UserAdmin
 
 from .forms import AnswerForm, CustomUserCreationForm, CustomUserChangeForm, CourseForm, ModuleForm, PostForm, \
     ReplyForm, QuestionForm, EssayAnswerForm, CourseMembershipForm, StudentAnswerForm
-from .models import User, Category, Course, Module, Post, Reply, Notification, Forum, File, FileType, Test, Question, \
+from .models import User, Category, Course, Module, Post, Reply, Notification, Forum, File, Test, Question, \
     Answer, EssayAnswer, CourseMembership, StudentScore, StudentAnswer
 
 
@@ -16,7 +16,7 @@ class CustomUserAdmin(UserAdmin):
     model = User
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
-        ('Personal info', {'fields': ('first_name', 'last_name', 'avatar', 'gender', 'role')}),
+        ('Personal info', {'fields': ('first_name', 'last_name', 'avatar', 'gender', 'role', 'date_of_birth')}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
     )
@@ -26,7 +26,7 @@ class CustomUserAdmin(UserAdmin):
             'fields': ('email', 'password1', 'password2', 'avatar', 'gender', 'role')}
          ),
     )
-    list_display = ('id', 'email', 'first_name', 'last_name', 'is_staff', 'role')
+    list_display = ('id', 'email', 'first_name', 'last_name', 'is_staff', 'role', 'date_of_birth')
     search_fields = ('email', 'first_name', 'last_name')
     ordering = ('email',)
 
@@ -44,7 +44,7 @@ class ModuleInline(admin.TabularInline):
 class CourseAdmin(admin.ModelAdmin):
     form = CourseForm
     inlines = [ModuleInline]
-    list_display = ('id', 'title', 'cover_image', 'created_at', 'updated_at', 'is_active')
+    list_display = ('id', 'title', 'cover_image', 'created_at', 'updated_at', 'is_active', 'author')
 
 
 class FileInline(admin.TabularInline):
@@ -62,11 +62,6 @@ class ModuleAdmin(admin.ModelAdmin):
         return obj.course.title
 
     course_title.short_description = 'Course Title'
-
-
-class FileTypeAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name',)
-    search_fields = ('name',)
 
 
 class ForumAdmin(admin.ModelAdmin):
@@ -195,6 +190,17 @@ class StudentAnswerAdmin(admin.ModelAdmin):
             self.message_user(request, str(e), level='error')
 
 
+class FileAdmin(admin.ModelAdmin):
+    list_display = ('module', 'file_url', 'file', 'file_type')  # Customize fields to display in admin
+
+    # Make the file_type read-only
+    readonly_fields = ('file_type',)
+
+    # Disable editing of files in the admin
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
 admin.site.register(Category, CategoryAdmin)
 admin.site.register(Course, CourseAdmin)
 admin.site.register(Module, ModuleAdmin)
@@ -203,7 +209,6 @@ admin.site.register(Reply, ReplyAdmin)
 admin.site.register(Notification, NotificationAdmin)
 admin.site.register(Post, PostAdmin)
 admin.site.register(Forum, ForumAdmin)
-admin.site.register(FileType, FileTypeAdmin)
 admin.site.register(Test, TestAdmin)
 admin.site.register(Question, QuestionAdmin)
 admin.site.register(Answer, AnswerAdmin)
@@ -211,3 +216,4 @@ admin.site.register(EssayAnswer, EssayAnswerAdmin)
 admin.site.register(CourseMembership, CourseMembershipAdmin)
 admin.site.register(StudentScore, StudentScoreAdmin)
 admin.site.register(StudentAnswer, StudentAnswerAdmin)
+admin.site.register(File, FileAdmin)
