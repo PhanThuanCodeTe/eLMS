@@ -7,10 +7,13 @@ import cloudinary.api
 import cloudinary.uploader
 from ckeditor.fields import RichTextField
 from cloudinary.models import CloudinaryField
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+from datetime import timedelta
+import random
 
 
 # Model lưu User lấy từ mẫu có sẵn từ Django
@@ -45,6 +48,15 @@ class User(AbstractUser):
             raise ValidationError("Date of birth cannot be in the future.")
 
 
+class Passcode(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def is_expired(self):
+        return timezone.now() > self.created_at + timedelta(minutes=5)
+
+
 # Model lưu danh mục
 class Category(models.Model):
     name = models.CharField(max_length=255, unique=True)  # Tên danh mục
@@ -64,7 +76,7 @@ class Course(models.Model):
     categories = models.ManyToManyField(Category, related_name='courses')  # Quan hệ nhiều - nhiều với Category
     created_at = models.DateTimeField(auto_now_add=True)  # Ngày tạo
     updated_at = models.DateTimeField(auto_now=True)  # Ngày cập nhật
-    is_active = models.BooleanField(default=True)  # Trạng thái của khóa học
+    is_active = models.BooleanField(default=False)  # Trạng thái của khóa học
     author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='courses')  # Tác giả khóa học
 
     # Hàm tự động tạo Forum cho khóa học
@@ -131,7 +143,7 @@ class Reply(models.Model):
         super().save(*args, **kwargs)
         Notification.objects.create(
             user=self.question.user,
-            message=f"{self.user.username} đã trả lời câu hỏi '{self.question.title}' vào {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            message=f"{self.user.username} đã trả lời câu hỏi '{self.question.title}'",
             created_at=timezone.now()
         )
 
@@ -149,8 +161,10 @@ class Notification(models.Model):
 
     # Hàm quản lý không cho nhập vào database
     def save(self, *args, **kwargs):
-        if self.pk is None:
-            raise PermissionError("Bạn không được tạo thông báo!")
+        # If you want to add some other restrictions, you can do that here
+        # For example, only allow admins to create certain notifications:
+        # if some_condition and not self.user.is_staff:
+        #     raise PermissionError("You are not allowed to create this notification!")
         super().save(*args, **kwargs)
 
 
