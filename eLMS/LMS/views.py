@@ -1,21 +1,25 @@
 # eLMS/LMS/views.py
+import random
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.mail import send_mail
 from django.shortcuts import render, get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, permissions, viewsets
 from rest_framework import status
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.mixins import CreateModelMixin, RetrieveModelMixin, ListModelMixin
 from .models import Category, Course, User, Module, CourseMembership, Test, Question, Answer, Notification, Forum, Post, \
-    Reply, File, EssayAnswer, StudentAnswer, StudentScore
+    Reply, File, EssayAnswer, StudentAnswer, StudentScore, Passcode
 from .serializers import CategorySerializer, CourseSerializer, UserSerializer, UserUpdateSerializer, \
     CourseCreateSerializer, CourseDetailSerializer, ModuleSerializer, ModuleTitleSerializer, TestSerializer, \
     AnswerSerializer, QuestionSerializer, NotificationSerializer, ForumSerializer, PostSerializer, ReplySerializer, \
     FileSerializer, EssayAnswerSerializer, StudentAnswerSerializer, StudentScoreSerializer
+from django.db.models import Q
 
 
 def home(request):
@@ -58,6 +62,7 @@ class CurrentUserViewSet(viewsets.ViewSet):
             'email': user.email,
             'first_name': user.first_name,
             'last_name': user.last_name,
+            'date_of_birth': user.date_of_birth,
             'last_login': user.last_login,
             'gender': user.gender,
             'role': user.role,
@@ -80,10 +85,85 @@ class CurrentUserViewSet(viewsets.ViewSet):
                 'last_login': updated_user.last_login,
                 'gender': updated_user.gender,
                 'role': updated_user.role,
-                'avatar': updated_user.get_avatar_url()
+                'avatar': updated_user.get_avatar_url(),
+                'date_of_birth': updated_user.date_of_birth
             }
             return Response(data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+def generate_passcode(user):
+    # Check if user has already requested 3 passcodes today
+    today = timezone.now().date()
+    passcode_requests_today = Passcode.objects.filter(user=user, created_at__date=today).count()
+
+    if passcode_requests_today >= 3:
+        raise ValueError("You have reached the maximum number of passcodes for today.")
+
+    # Generate 6-digit passcode
+    code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+
+    # Create and save passcode
+    passcode = Passcode.objects.create(user=user, code=code)
+
+    # Send email to user with the passcode
+    send_mail(
+        'Your Password Reset Code',
+        f'Your password reset code is: {code}. It will expire in 5 minutes.',
+        'thuanpmt0711@gmail.com',
+        [user.email],
+    )
+
+    return passcode
+
+
+class PasswordResetViewSet(viewsets.ViewSet):
+
+    @action(detail=False, methods=['post'])
+    def request_passcode(self, request):
+        email = request.data.get('email')  # Get the email from request data
+
+        if not email:
+            return Response({'error': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        email = email.strip().lower()  # Ensure email is stripped and lowercase
+        try:
+            user = User.objects.get(email__iexact=email)  # Case-insensitive query
+            generate_passcode(user)  # Call your passcode generation function
+            return Response({'message': 'Passcode sent to your email.'}, status=status.HTTP_200_OK)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=False, methods=['post'])
+    def reset_password(self, request):
+        code = request.data.get('code')
+        new_password = request.data.get('new_password')
+
+        if not code or not new_password:
+            return Response({'error': 'Passcode and new password are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Find the passcode entry based on the code
+            passcode = Passcode.objects.get(code=code)
+
+            # Check if the passcode is expired
+            if passcode.is_expired():
+                return Response({'error': 'Passcode has expired.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Find the user associated with the passcode
+            user = passcode.user
+
+            # Reset the user's password
+            user.set_password(new_password)
+            user.save()
+
+            # Optionally delete the used passcode
+            passcode.delete()
+
+            return Response({'message': 'Password has been reset successfully.'}, status=status.HTTP_200_OK)
+
+        except Passcode.DoesNotExist:
+            return Response({'error': 'Invalid passcode.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CourseListView(viewsets.GenericViewSet, ListModelMixin):
@@ -136,6 +216,54 @@ class CourseCreateView(viewsets.ModelViewSet):
         return Response(detail_serializer.data, status=status.HTTP_201_CREATED)
 
 
+class CourseDetailView(viewsets.ViewSet):
+    permission_classes = [IsAuthenticatedOrReadOnly]  # Anyone can view, only authenticated can patch/delete
+
+    def retrieve(self, request, pk=None):
+        """Handle GET request to retrieve course details by ID."""
+        try:
+            course = Course.objects.get(id=pk)
+        except Course.DoesNotExist:
+            return Response({"error": "Course not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = CourseDetailSerializer(course)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def partial_update(self, request, pk=None):
+        """Handle PATCH request to update the course if the user is the teacher."""
+        try:
+            course = Course.objects.get(id=pk)
+        except Course.DoesNotExist:
+            return Response({"error": "Course not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Only allow teachers (author of the course) to patch the course
+        if request.user != course.author or request.user.role != 1:  # 1 is the teacher role
+            raise PermissionDenied("You do not have permission to edit this course.")
+
+        serializer = CourseCreateSerializer(course, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def destroy(self, request, pk=None):
+        """Handle DELETE request by marking the course as inactive (soft delete)."""
+        try:
+            course = Course.objects.get(id=pk)
+        except Course.DoesNotExist:
+            return Response({"error": "Course not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Only allow teachers (author of the course) to delete (mark as inactive)
+        if request.user != course.author or request.user.role != 1:  # 1 is the teacher role
+            raise PermissionDenied("You do not have permission to delete this course.")
+
+        # Soft delete: set is_active to False
+        course.is_active = False
+        course.save()
+
+        return Response({"message": "Course has been deactivated."}, status=status.HTTP_204_NO_CONTENT)
+
+
 class CategoryListView(viewsets.ReadOnlyModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
@@ -151,7 +279,7 @@ class CategoryListView(viewsets.ReadOnlyModelViewSet):
         return queryset
 
 
-class ModuleViewSet(viewsets.ViewSet):
+class ModuleViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action == 'list':
             permission_classes = [permissions.AllowAny]
@@ -164,48 +292,37 @@ class ModuleViewSet(viewsets.ViewSet):
             return ModuleTitleSerializer
         return ModuleSerializer
 
-    def list(self, request, course_id=None):
-        course = Course.objects.get(id=course_id)
-        modules = course.modules.all()
-        serializer = self.get_serializer_class()(modules, many=True)
-        return Response(serializer.data)
+    def get_queryset(self):
+        return Module.objects.filter(course_id=self.kwargs['course_id'])
 
-    def create(self, request, course_id=None):
-        course = Course.objects.get(id=course_id)
-        if request.user != course.author:
+    def perform_create(self, serializer):
+        course = Course.objects.get(id=self.kwargs['course_id'])
+        if self.request.user != course.author:
             raise PermissionDenied("You do not have permission to create modules for this course.")
+        serializer.save(course=course)
 
-        serializer_class = self.get_serializer_class()
-        serializer = serializer_class(data=request.data)
-        if serializer.is_valid():
-            serializer.save(course=course)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def retrieve(self, request, course_id=None, pk=None):
-        module = Module.objects.get(id=pk, course_id=course_id)
-        serializer = self.get_serializer_class()(module)
-        return Response(serializer.data)
-
-    def update(self, request, course_id=None, pk=None):
-        module = Module.objects.get(id=pk, course_id=course_id)
-        if request.user != module.course.author:
+    def perform_update(self, serializer):
+        if self.request.user != serializer.instance.course.author:
             raise PermissionDenied("You do not have permission to update this module.")
+        serializer.save()
 
-        serializer_class = self.get_serializer_class()
-        serializer = serializer_class(module, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def destroy(self, request, course_id=None, pk=None):
-        module = Module.objects.get(id=pk, course_id=course_id)
-        if request.user != module.course.author:
+    def perform_destroy(self, instance):
+        if self.request.user != instance.course.author:
             raise PermissionDenied("You do not have permission to delete this module.")
+        instance.delete()
 
-        module.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+
+class UserCourseMembershipView(viewsets.ViewSet):
+    permission_classes = [permissions.IsAuthenticated]  # Ensure only authenticated users can access
+
+    def list(self, request):
+        # Fetch courses where the current user is a member
+        memberships = CourseMembership.objects.filter(user=request.user, is_active=True)
+        courses = [membership.course for membership in memberships]
+
+        # Use CourseSerializer to return course details
+        serializer = CourseSerializer(courses, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class CourseMembershipViewSet(viewsets.ViewSet):
@@ -452,8 +569,8 @@ class NotificationViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # Get only notifications belonging to the logged-in user
-        return Notification.objects.filter(user=self.request.user)
+        # Get the last 10 notifications for the logged-in user, ordered by descending ID
+        return Notification.objects.filter(user=self.request.user).order_by('-id')[:10]
 
     def partial_update(self, request, *args, **kwargs):
         notification = self.get_object()
@@ -467,7 +584,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
             raise ValidationError("This notification is already marked as read and cannot be modified.")
 
         # Only allow marking the notification as read
-        if 'is_read' in request.data and request.data['is_read'] == True:
+        if 'is_read' in request.data and request.data['is_read'] is True:
             notification.is_read = True
             notification.save()
             return Response({"message": "Notification marked as read."}, status=status.HTTP_200_OK)
@@ -587,7 +704,18 @@ class FileViewSet(viewsets.ModelViewSet):
         if module.course.author != self.request.user:
             raise PermissionDenied("You do not have permission to add files to this module.")
 
-        serializer.save(module=module)
+        # Check for file or file_url and set file_type accordingly
+        file_data = self.request.data.get('file')
+        file_url_data = self.request.data.get('file_url')
+
+        if file_data:
+            # If a file is provided, set file_type to 'Tập tin'
+            serializer.save(module=module, file_type='Tập tin')
+        elif file_url_data:
+            # If a file URL is provided, set file_type to 'Liên kết'
+            serializer.save(module=module, file_type='Liên kết')
+        else:
+            raise ValidationError("You must provide either a file or a file URL.")
 
     def destroy(self, request, *args, **kwargs):
         file = self.get_object()

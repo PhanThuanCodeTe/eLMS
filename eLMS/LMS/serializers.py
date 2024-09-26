@@ -59,15 +59,41 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(required=False)
     last_name = serializers.CharField(required=False)
     email = serializers.EmailField(required=False)
-    date_of_birth = serializers.DateField(required=False)  # New field
+    date_of_birth = serializers.DateField(required=False)
+    old_password = serializers.CharField(write_only=True, required=False)
+    new_password = serializers.CharField(write_only=True, required=False)
 
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'email', 'avatar', 'date_of_birth']
+        fields = ['first_name', 'last_name', 'email', 'avatar', 'date_of_birth', 'old_password', 'new_password']
+
+    def validate(self, data):
+        old_password = data.get('old_password')
+        new_password = data.get('new_password')
+
+        if old_password and not new_password:
+            raise serializers.ValidationError("New password is required when old password is provided.")
+        if new_password and not old_password:
+            raise serializers.ValidationError("Old password is required when providing a new password.")
+
+        if old_password and new_password:
+            user = self.instance
+            if not user.check_password(old_password):
+                raise serializers.ValidationError("Mật khẩu sai.")
+
+        return data
 
     def update(self, instance, validated_data):
-        if 'email' in validated_data:
-            instance.username = validated_data['email']
+        if 'old_password' in validated_data and 'new_password' in validated_data:
+            old_password = validated_data['old_password']
+            new_password = validated_data['new_password']
+            if old_password and new_password:
+                instance.set_password(new_password)
+
+        # Remove password fields from the data being saved to prevent them from being updated unintentionally
+        validated_data.pop('old_password', None)
+        validated_data.pop('new_password', None)
+
         return super().update(instance, validated_data)
 
 
@@ -162,18 +188,16 @@ class ModuleTitleSerializer(serializers.ModelSerializer):
 
 # Serializer for creating, updating, and deleting modules (all attributes)
 class ModuleSerializer(serializers.ModelSerializer):
-    course = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all(), write_only=True)
-
     class Meta:
         model = Module
-        fields = ['id', 'course', 'title', 'youtube_url', 'description', 'created_at']
+        fields = ['id', 'title', 'youtube_url', 'description', 'created_at']
         read_only_fields = ['created_at']
 
 
 class FileSerializer(serializers.ModelSerializer):
     class Meta:
         model = File
-        fields = ['id', 'module', 'file_url', 'file', 'file_type']
+        fields = ['id', 'file_url', 'file', 'file_type']
         read_only_fields = ['file_type']
 
     def validate(self, data):
@@ -224,15 +248,20 @@ class ForumSerializer(serializers.ModelSerializer):
 class PostSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
-        fields = ['id', 'forum', 'user', 'title', 'body', 'created_at']
+        fields = ['id', 'user', 'title', 'body', 'created_at']
         read_only_fields = ['user', 'created_at']
 
 
 class ReplySerializer(serializers.ModelSerializer):
+    user_full_name = serializers.SerializerMethodField()
+
     class Meta:
         model = Reply
-        fields = ['id', 'question', 'user', 'body', 'created_at']
+        fields = ['id', 'user', 'user_full_name', 'body', 'created_at']
         read_only_fields = ['user', 'created_at']
+
+    def get_user_full_name(self, obj):
+        return f"{obj.user.first_name} {obj.user.last_name}"
 
 
 class EssayAnswerSerializer(serializers.ModelSerializer):
