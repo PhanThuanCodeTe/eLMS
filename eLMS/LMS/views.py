@@ -1,5 +1,9 @@
 # eLMS/LMS/views.py
 import random
+import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -14,11 +18,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.mixins import CreateModelMixin, RetrieveModelMixin, ListModelMixin
 from .models import Category, Course, User, Module, CourseMembership, Test, Question, Answer, Notification, Forum, Post, \
-    Reply, File, EssayAnswer, StudentAnswer, StudentScore, Passcode
+    Reply, File, EssayAnswer, StudentAnswer, StudentScore, Passcode, TeacherRegister
 from .serializers import CategorySerializer, CourseSerializer, UserSerializer, UserUpdateSerializer, \
     CourseCreateSerializer, CourseDetailSerializer, ModuleSerializer, ModuleTitleSerializer, TestSerializer, \
     AnswerSerializer, QuestionSerializer, NotificationSerializer, ForumSerializer, PostSerializer, ReplySerializer, \
-    FileSerializer, EssayAnswerSerializer, StudentAnswerSerializer, StudentScoreSerializer
+    FileSerializer, EssayAnswerSerializer, StudentAnswerSerializer, StudentScoreSerializer, CourseMembershipSerializer, \
+    TeacherRegisterSerializer
 from django.db.models import Q
 
 
@@ -171,19 +176,38 @@ class CourseListView(viewsets.GenericViewSet, ListModelMixin):
     permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
+        queryset = Course.objects.all()
         user = self.request.user
+
+        # Filter by authenticated teacher
         if user.is_authenticated and user.role == 1:  # Teacher
-            return Course.objects.filter(author=user)
-        else:
-            return Course.objects.all()
+            queryset = queryset.filter(author=user)
+
+        # Filtering by a single keyword across title, description, category, and author name
+        keyword = self.request.query_params.get('q', None)
+        if keyword:
+            queryset = queryset.filter(
+                Q(title__icontains=keyword) |
+                Q(description__icontains=keyword) |
+                Q(categories__name__icontains=keyword) |
+                Q(author__first_name__icontains=keyword) |
+                Q(author__last_name__icontains=keyword)
+            ).distinct()
+
+        # Sort by created_at descending to get the latest courses
+        sort_by = self.request.query_params.get('sort', None)
+        if sort_by == 'latest':
+            queryset = queryset.order_by('-created_at')  # Sort by latest created
+
+        return queryset
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
 
         response_data = {
+            'q': request.query_params.get('q', None),
             'courses': serializer.data,
-            'user_role': 'teacher' if request.user.is_authenticated and request.user.role == 1 else 'student_or_anonymous'
         }
 
         return Response(response_data)
@@ -377,6 +401,18 @@ class CourseMembershipViewSet(viewsets.ViewSet):
         except CourseMembership.DoesNotExist:
             return Response({"error": "You are not a member of this course."}, status=status.HTTP_404_NOT_FOUND)
 
+    # Retrieve the membership details for a specific course
+    def retrieve(self, request, pk=None):
+        user = request.user
+        try:
+            membership = CourseMembership.objects.get(user=user, course__id=pk)
+        except CourseMembership.DoesNotExist:
+            return Response({"error": "Membership not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Serialize the membership object and return the response
+        serializer = CourseMembershipSerializer(membership)
+        return Response(serializer.data)
+
 
 class IsCourseAuthor(permissions.BasePermission):
     """
@@ -510,36 +546,74 @@ class AnswerViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # Get the question ID from the URL parameters
         question_id = self.kwargs['question_id']
         question = Question.objects.get(id=question_id)
 
-        # Ensure the user is a course member or the course author
         if question.test.module.course.author == self.request.user or CourseMembership.objects.filter(
                 user=self.request.user, course=question.test.module.course, is_active=True).exists():
             return Answer.objects.filter(question=question)
 
         raise PermissionDenied("You do not have permission to access these answers.")
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        # Pass the request context to the serializer
+        serializer = self.get_serializer(queryset, many=True, context={'request': request})
+
+        result = self.calculate_result(queryset)
+
+        response_data = {
+            "answers": serializer.data,
+            "result": result
+        }
+
+        return Response(response_data)
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        # Pass the request context to the serializer
+        serializer = self.get_serializer(instance, context={'request': request})
+        return Response(serializer.data)
+
+    def calculate_result(self, answers):
+        correct_count = sum(1 for answer in answers if answer.is_correct)
+
+        if correct_count == 1:
+            return 1
+        elif correct_count > 1:
+            return 2
+        else:
+            return 0
+
     def create(self, request, *args, **kwargs):
-        # Get the question instance based on the URL parameter
         question_id = kwargs['question_id']
         question = Question.objects.get(id=question_id)
 
-        # Ensure only the course author can create answers
         if question.test.module.course.author != request.user:
             raise PermissionDenied("Only the course author can create answers.")
 
-        # Validate that answers are not added to an essay question
         if question.type == 1:  # Essay question type
             raise ValidationError("Cannot add answers to an essay question.")
 
-        # Serialize the answer data and assign the question automatically
+        # Use the serializer to validate and create the answer
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(question=question)  # Automatically set the question
 
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        instance = self.perform_create(serializer)
+
+        response_data = {
+            "id": instance.id,
+            "choice": instance.choice,
+            "is_correct": instance.is_correct,
+        }
+
+        headers = self.get_success_headers(serializer.data)
+        return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def perform_create(self, serializer):
+        instance = serializer.save(question_id=self.kwargs['question_id'])
+        print(f"Created instance: {instance}")  # Print the instance
+        return instance
 
     def update(self, request, *args, **kwargs):
         # Get the answer instance that needs to be updated
@@ -732,92 +806,176 @@ class EssayAnswerViewSet(viewsets.ModelViewSet):
     serializer_class = EssayAnswerSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        question_id = self.kwargs.get('question_id')
-        question = Question.objects.get(id=question_id)
+    def create(self, request, *args, **kwargs):
+        # Fetch the question ID from the request data
+        question_id = request.data.get('question')
 
-        # Ensure only the creator or course author can access the answers
-        if question.test.module.course.author == self.request.user or self.request.user == question.essayanswer.user:
-            return EssayAnswer.objects.filter(question=question)
-        raise PermissionDenied("You do not have permission to view this answer.")
+        # Ensure the question ID exists in the request
+        if not question_id:
+            return Response({"error": "Question ID is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-    def perform_create(self, serializer):
-        question = Question.objects.get(id=self.kwargs.get('question_id'))
+        # Fetch the question or return a 404 error
+        question = get_object_or_404(Question, id=question_id)
+
+        # Check if the user has already submitted an essay answer
+        existing_answer = EssayAnswer.objects.filter(user=request.user, question=question).first()
+        if existing_answer:
+            # Return the existing answer with a 200 OK status instead of 400 Bad Request
+            serializer = self.get_serializer(existing_answer)
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
         # Ensure the user is a course member
         if not CourseMembership.objects.filter(user=self.request.user, course=question.test.module.course,
                                                is_active=True).exists():
             raise PermissionDenied("You do not have permission to answer this question.")
 
-        # Ensure students can't set the score or teacher's comments
-        serializer.save(user=self.request.user, question=question)
+        # Save the essay answer
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(user=request.user, question=question)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    def update(self, request, *args, **kwargs):
+    @action(detail=True, methods=['get'])
+    def get_essay_answer(self, request, question_id=None):
+        question = get_object_or_404(Question, id=question_id)
+        essay_answer = EssayAnswer.objects.filter(user=request.user, question=question).first()
+
+        if essay_answer:
+            serializer = self.get_serializer(essay_answer)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        return Response({"error": "No essay answer found."}, status=status.HTTP_404_NOT_FOUND)
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 1:  # Assuming 1 is the role code for teachers
+            # Teachers can see all answers
+            return EssayAnswer.objects.all()
+        else:
+            # Students can only see their own answers
+            return EssayAnswer.objects.filter(user=user)
+
+    @action(detail=False, methods=['get'], url_path='get-student-answer')
+    def get_student_answer(self, request):
+        question_id = request.query_params.get('question_id')
+        if not question_id:
+            return Response({"error": "Question ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        question = get_object_or_404(Question, id=question_id)
+
+        if request.user.role == 1:  # Teacher
+            # Fetch all student answers for this question
+            answers = EssayAnswer.objects.filter(question=question)
+            serializer = self.get_serializer(answers, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        else:  # Student
+            # Fetch the student's own answer
+            answer = EssayAnswer.objects.filter(user=request.user, question=question).first()
+            if answer:
+                serializer = self.get_serializer(answer)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            else:
+                return Response({"message": "You haven't submitted an answer for this question yet."},
+                                status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['patch'], url_path='update-score')
+    def update_score(self, request, pk=None):
         essay_answer = self.get_object()
 
-        # Ensure only the teacher can update the score or comments
-        if request.user != essay_answer.question.test.module.course.author:
-            raise PermissionDenied("Only the course author can update the score or comments.")
+        # Check if the user is a teacher and has permission
+        if request.user.role != 1 or essay_answer.question.test.module.course.author.id != request.user.id:
+            return Response({"error": "You do not have permission to update this score."},
+                            status=status.HTTP_403_FORBIDDEN)
 
-        return super().update(request, *args, **kwargs)
+        # Update score and comments
+        serializer = self.get_serializer(essay_answer, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
 
-    def partial_update(self, request, *args, **kwargs):
-        # Disable PATCH method
-        raise PermissionDenied("PATCH method is not allowed.")
-
-    def destroy(self, request, *args, **kwargs):
-        # Disable DELETE method
-        raise PermissionDenied("DELETE method is not allowed.")
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class StudentAnswerViewSet(viewsets.ModelViewSet):
     serializer_class = StudentAnswerSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        question_id = self.kwargs.get('question_id')
-        question = Question.objects.get(id=question_id)
-
-        # Ensure only the creator or course author can access the answers
-        if question.test.module.course.author == self.request.user or self.request.user == question.studentanswer.user:
-            return StudentAnswer.objects.filter(question=question)
-        raise PermissionDenied("You do not have permission to view this answer.")
+    permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
-        # Get the question instance based on the URL parameter
         question_id = request.data.get('question')
+        question = get_object_or_404(Question, id=question_id)
+
+        selected_answers_str = request.data.get('selected_answer')
+
+        if selected_answers_str is None:
+            return Response({"error": "selected_answer is required."}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
-            question = Question.objects.get(id=question_id)
-        except Question.DoesNotExist:
-            return Response({"error": "Question not found."}, status=status.HTTP_404_NOT_FOUND)
+            selected_answers = json.loads(selected_answers_str)
+            if not isinstance(selected_answers, list):
+                raise ValueError("selected_answer must be a list.")
+        except (ValueError, json.JSONDecodeError):
+            return Response({"error": "Invalid format for selected_answer."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Ensure only course members can submit an answer
-        if not (request.user == question.test.module.course.author or
-                CourseMembership.objects.filter(user=request.user, course=question.test.module.course, is_active=True).exists()):
-            raise PermissionDenied("You do not have permission to answer this question.")
+        # Clear old answers for this question
+        StudentAnswer.objects.filter(user=request.user, question=question).delete()
 
-        # Assign the authenticated user to the answer
-        data = request.data.copy()
-        data['user'] = request.user.id  # Automatically assign the user
+        created_answers = []
+        for answer_id in selected_answers:
+            data = {
+                'user': request.user.id,
+                'question': question.id,
+                'selected_answer': answer_id,
+            }
+            serializer = self.get_serializer(data=data)
+            serializer.is_valid(raise_exception=True)
+            created_answer = serializer.save(question=question)
+            created_answers.append(created_answer)
 
-        # Serialize the answer data and assign the question
-        serializer = self.get_serializer(data=data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save(question=question)
+        # Update the overall score
+        self.update_student_score(question.test)
 
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        response_data = {
+            'count': len(created_answers),
+            'answers': [StudentAnswerSerializer(answer).data for answer in created_answers],
+        }
 
-    def update(self, request, *args, **kwargs):
-        # Disable the update of `is_correct` (handled automatically)
-        raise PermissionDenied("You cannot modify the answer once it has been submitted.")
+        correct_answers_count = Answer.objects.filter(question=question, is_correct=True).count()
+        if len(selected_answers) > correct_answers_count:
+            response_data['warning'] = 'You submitted too many answers, score for this question is 0%.'
 
-    def partial_update(self, request, *args, **kwargs):
-        # Disable PATCH method
-        raise PermissionDenied("PATCH method is not allowed.")
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
-    def destroy(self, request, *args, **kwargs):
-        # Disable DELETE method
-        raise PermissionDenied("DELETE method is not allowed.")
+    def calculate_question_score(self, question, selected_answers, total_questions):
+        correct_answers = Answer.objects.filter(question=question, is_correct=True)
+        correct_answers_count = correct_answers.count()
+        selected_correct_answers_count = correct_answers.filter(id__in=selected_answers).count()
+
+        # If more answers are submitted than there are correct answers, score is 0
+        if len(selected_answers) > correct_answers_count:
+            return 0
+
+        # Calculate the score based on the proportion of correct answers selected
+        if correct_answers_count > 0:
+            score = (selected_correct_answers_count / correct_answers_count) * (100 / total_questions)
+        else:
+            score = 0
+
+        return score
+
+    def update_student_score(self, test):
+        student_answers = StudentAnswer.objects.filter(user=self.request.user, question__test=test)
+        total_questions = test.questions.count()
+        total_score = 0
+
+        for question in test.questions.all():
+            selected_answers = student_answers.filter(question=question).values_list('selected_answer', flat=True)
+            question_score = self.calculate_question_score(question, selected_answers, total_questions)
+            total_score += question_score
+
+        # Update or create the score record
+        score_record, _ = StudentScore.objects.get_or_create(user=self.request.user, test=test)
+        score_record.score = total_score
+        score_record.save()
 
 
 class StudentScoreViewSet(viewsets.ViewSet):
@@ -849,3 +1007,26 @@ class StudentScoreViewSet(viewsets.ViewSet):
 
         else:
             raise PermissionDenied("You do not have permission to view these scores.")
+
+
+class TeacherRegisterViewSet(viewsets.GenericViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = TeacherRegisterSerializer
+
+    def create(self, request):
+        user = request.user
+        serializer = self.get_serializer(data=request.data)
+
+        if serializer.is_valid():
+            # Check if the user already applied
+            if TeacherRegister.objects.filter(user=user).exists():
+                return Response({'detail': 'You have already submitted a registration request.'},
+                              status=status.HTTP_400_BAD_REQUEST)
+
+            # Save the registration
+            serializer.save(user=user)
+            return Response({'detail': 'Teacher registration submitted successfully.'},
+                          status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+

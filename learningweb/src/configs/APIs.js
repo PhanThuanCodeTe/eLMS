@@ -23,6 +23,14 @@ export const endpoints = {
     "forum-post" : (forumId) => `/forums/${forumId}/posts/`,
     "post-reply": (postId) => `posts/${postId}/replies/`,
     "notifications" : "/notifications/",
+    "essay-awnswer":"/essay_answers/",
+    "choice-awnswer":"/student_answers/",
+    "score":(testId) => `/tests/${testId}/scores/`,
+    "get-essay-answer": (questionId) => `/essay_answers/get-student-answer/?question_id=${questionId}`,
+    "course-membership": "/course-membership/",
+    "join-course": "/course-membership/join/",
+    "teacher-register":"/teacher-register/",
+    "module-file": (moduleId) => `/modules/${moduleId}/files/`,
 };
 
 export const authAPIs = (includeAuth = true) => {

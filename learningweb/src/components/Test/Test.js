@@ -44,9 +44,11 @@ const Test = () => {
       const response = await authAPIs().get(
         endpoints["question-answer"](questionId)
       );
-      setAnswers((prev) => ({ ...prev, [questionId]: response.data }));
+      console.log(`Answers for question ${questionId}:`, response.data);
+      setAnswers((prev) => ({ ...prev, [questionId]: response.data.answers }));
     } catch (err) {
       console.error(`Error fetching answers for question ${questionId}:`, err);
+      setAnswers((prev) => ({ ...prev, [questionId]: [] }));
     }
   };
 
@@ -110,14 +112,14 @@ const Test = () => {
 
   const updateAnswer = async (questionId, answerId, updatedAnswer) => {
     try {
-      await authAPIs().patch(
+      const response = await authAPIs().patch(
         `${endpoints["question-answer"](questionId)}${answerId}/`,
         updatedAnswer
       );
       setAnswers((prev) => ({
         ...prev,
         [questionId]: prev[questionId].map((a) =>
-          a.id === answerId ? { ...a, ...updatedAnswer } : a
+          a.id === answerId ? response.data : a
         ),
       }));
       setEditingAnswer(null);
@@ -133,7 +135,7 @@ const Test = () => {
         endpoints["question-answer"](questionId),
         {
           choice: newAnswer.choice,
-          is_correct: newAnswer.isCorrect,
+          is_correct: newAnswer.isCorrect  // This will send a boolean value
         }
       );
       setAnswers((prev) => ({
@@ -244,7 +246,7 @@ const Test = () => {
                 )}
 
                 <h4 className="mt-3">Đáp án:</h4>
-                {answers[question.id]?.length > 0 ? (
+                {answers[question.id] && answers[question.id].length > 0 ? (
                   <>
                     {answers[question.id].map((answer) => (
                       <div key={answer.id} className="mb-2 d-flex justify-content-between align-items-center">
@@ -388,7 +390,6 @@ const Test = () => {
         </Accordion>
       )}
 
-      {/* Delete Confirmation Modal */}
       <Modal show={showDeleteModal} onHide={handleCloseDeleteModal}>
         <Modal.Header closeButton>
           <Modal.Title>Xác nhận xóa đáp án</Modal.Title>

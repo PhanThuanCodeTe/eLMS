@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useLocation, useParams } from "react-router-dom";
-import { Accordion, Button, Form, Spinner, Alert } from "react-bootstrap";
+import {
+  Accordion,
+  Button,
+  Form,
+  Spinner,
+  Alert,
+  Offcanvas,
+  Modal,
+} from "react-bootstrap";
 import { CKEditor } from "@ckeditor/ckeditor5-react";
 import ClassicEditor from "@ckeditor/ckeditor5-build-classic";
 import { authAPIs, endpoints } from "../../configs/APIs";
@@ -18,6 +26,80 @@ const EssayTest = () => {
     content: "",
     type: testInfo?.test_type || 1, // Essay test type = 1
   });
+
+  const [showOffcanvas, setShowOffcanvas] = useState(false);
+  const [selectedQuestion, setSelectedQuestion] = useState(null); // For grading
+  const [studentAnswers, setStudentAnswers] = useState([]); // To store student answers for the selected question
+  const [loadingAnswers, setLoadingAnswers] = useState(false);
+  const [gradingAnswer, setGradingAnswer] = useState(null);
+  const [showGradingModal, setShowGradingModal] = useState(false);
+
+  const handleCloseOffcanvas = () => setShowOffcanvas(false);
+  const handleShowOffcanvas = (question) => {
+    setSelectedQuestion(question);
+    fetchStudentAnswers(question.id);
+    setShowOffcanvas(true);
+  };
+
+  const fetchStudentAnswers = async (questionId) => {
+    setLoadingAnswers(true);
+    setError(null);
+
+    try {
+      const response = await authAPIs().get(
+        `${endpoints["essay-awnswer"]}get-student-answer/?question_id=${questionId}`
+      );
+
+      const sortedAnswers = response.data.sort((a, b) => a.score - b.score);
+      setStudentAnswers(sortedAnswers);
+    } catch (err) {
+      console.error("Error fetching student answers:", err);
+      setError("Không thể tải các câu trả lời của học sinh.");
+    } finally {
+      setLoadingAnswers(false);
+    }
+  };
+
+  const handleGradeAnswer = (answer) => {
+    setGradingAnswer(answer);
+    setShowGradingModal(true);
+  };
+
+  const handleScoreChange = (e) => {
+    setGradingAnswer((prev) => ({ ...prev, score: e.target.value }));
+  };
+
+  const handleCommentChange = (_, editor) => {
+    const data = editor.getData();
+    setGradingAnswer((prev) => ({ ...prev, teacher_comments: data }));
+  };
+
+  const submitGrade = async () => {
+    try {
+      const response = await authAPIs().patch(
+        `${endpoints["essay-awnswer"]}${gradingAnswer.id}/update-score/`,
+        {
+          score: gradingAnswer.score,
+          teacher_comments: gradingAnswer.teacher_comments,
+        }
+      );
+
+      setStudentAnswers(
+        (prev) =>
+          prev
+            .map((answer) =>
+              answer.id === gradingAnswer.id ? response.data : answer
+            )
+            .sort((a, b) => a.score - b.score)
+      );
+
+      setShowGradingModal(false);
+      setGradingAnswer(null);
+    } catch (err) {
+      console.error("Error updating grade:", err);
+      setError("Không thể cập nhật điểm số.");
+    }
+  };
 
   const fetchQuestions = useCallback(async () => {
     setLoading(true);
@@ -143,13 +225,23 @@ const EssayTest = () => {
                   </Form>
                 ) : (
                   <>
-                    <div dangerouslySetInnerHTML={{ __html: question.content }} />
-                    <Button
-                      variant="primary"
-                      onClick={() => handleQuestionEdit(question)}
-                    >
-                      Chỉnh sửa
-                    </Button>
+                    <div
+                      dangerouslySetInnerHTML={{ __html: question.content }}
+                    />
+                    <div className="d-flex justify-content-between mt-3">
+                      <Button
+                        variant="primary"
+                        onClick={() => handleQuestionEdit(question)}
+                      >
+                        Chỉnh sửa
+                      </Button>
+                      <Button
+                        variant="success"
+                        onClick={() => handleShowOffcanvas(question)}
+                      >
+                        Chấm bài cho học sinh
+                      </Button>
+                    </div>
                   </>
                 )}
               </Accordion.Body>
@@ -176,6 +268,104 @@ const EssayTest = () => {
           </Accordion.Item>
         </Accordion>
       )}
+
+      {/* Offcanvas for grading */}
+      <Offcanvas
+        show={showOffcanvas}
+        onHide={handleCloseOffcanvas}
+        placement="start"
+      >
+        <Offcanvas.Header closeButton>
+          <Offcanvas.Title>Câu trả lời của học sinh</Offcanvas.Title>
+        </Offcanvas.Header>
+        <Offcanvas.Body>
+          {selectedQuestion && (
+            <>
+              <p>
+                <strong>Câu hỏi:</strong>
+              </p>
+              <div
+                dangerouslySetInnerHTML={{ __html: selectedQuestion.content }}
+              />
+              <hr />
+              <h3>Câu trả lời của học sinh:</h3>
+              {loadingAnswers ? (
+                <Spinner animation="border" />
+              ) : error ? (
+                <Alert variant="danger">{error}</Alert>
+              ) : studentAnswers.length > 0 ? (
+                studentAnswers.map((answer) => (
+                  <div key={answer.id}>
+                    <p>
+                      <strong>Câu trả lời:</strong>
+                    </p>
+                    <div
+                      dangerouslySetInnerHTML={{ __html: answer.answer_text }}
+                    />
+                    <p>
+                      <strong>Điểm:</strong> {answer.score}
+                    </p>
+                    <Button onClick={() => handleGradeAnswer(answer)}>
+                      Chấm điểm
+                    </Button>
+                    <hr />
+                  </div>
+                ))
+              ) : (
+                <p>Chưa có học sinh nộp bài.</p>
+              )}
+            </>
+          )}
+        </Offcanvas.Body>
+      </Offcanvas>
+
+      {/* Modal for grading */}
+      <Modal show={showGradingModal} onHide={() => setShowGradingModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Chấm điểm</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {gradingAnswer && (
+            <>
+              <p>
+                <strong>Học sinh:</strong> {gradingAnswer.student_name}
+              </p>
+              <p>
+                <strong>Câu trả lời:</strong>
+              </p>
+              <div
+                dangerouslySetInnerHTML={{ __html: gradingAnswer.answer_text }}
+              />
+              <Form>
+                <Form.Group>
+                  <Form.Label>Điểm số:</Form.Label>
+                  <Form.Control
+                    type="number"
+                    value={gradingAnswer.score}
+                    onChange={handleScoreChange}
+                  />
+                </Form.Group>
+                <Form.Group>
+                  <Form.Label>Nhận xét:</Form.Label>
+                  <CKEditor
+                    editor={ClassicEditor}
+                    data={gradingAnswer.teacher_comments}
+                    onChange={handleCommentChange}
+                  />
+                </Form.Group>
+              </Form>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowGradingModal(false)}>
+            Đóng
+          </Button>
+          <Button variant="primary" onClick={submitGrade}>
+            Lưu điểm và nhận xét
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };

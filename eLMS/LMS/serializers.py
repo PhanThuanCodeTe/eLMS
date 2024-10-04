@@ -3,7 +3,7 @@ import ast
 
 from rest_framework import serializers
 from .models import Category, Course, Module, CourseMembership, Test, Question, Answer, Notification, Forum, Post, \
-    Reply, File, EssayAnswer, StudentAnswer, StudentScore
+    Reply, File, EssayAnswer, StudentAnswer, StudentScore, TeacherRegister
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.utils.timesince import timesince
@@ -227,9 +227,16 @@ class QuestionSerializer(serializers.ModelSerializer):
 
 
 class AnswerSerializer(serializers.ModelSerializer):
+    is_correct = serializers.BooleanField()  # Changed to BooleanField
+
     class Meta:
         model = Answer
         fields = ['id', 'choice', 'is_correct']
+
+    def validate_is_correct(self, value):
+        if value not in [True, False]:
+            raise serializers.ValidationError("is_correct must be a boolean value.")
+        return value
 
 
 class NotificationSerializer(serializers.ModelSerializer):
@@ -267,14 +274,23 @@ class ReplySerializer(serializers.ModelSerializer):
 class EssayAnswerSerializer(serializers.ModelSerializer):
     class Meta:
         model = EssayAnswer
-        fields = ['id', 'question', 'user', 'answer_text', 'teacher_comments', 'score']
-        read_only_fields = ['teacher_comments', 'score']  # These fields should only be set by the teacher
+        fields = ['id', 'question', 'answer_text', 'teacher_comments', 'score']
+
+    def update(self, instance, validated_data):
+        # Remove 'question' from validated_data if it exists
+        validated_data.pop('question', None)  # Safely remove if exists
+        return super().update(instance, validated_data)
 
     def validate(self, data):
-        # Ensure the user can't set the score
+        request_user = self.context['request'].user
+
+        # Check if the user is attempting to set the score or comments
         if 'score' in data or 'teacher_comments' in data:
-            if self.context['request'].user != data['question'].test.module.course.author:
+            # Access the question through the instance
+            question = self.instance.question
+            if question.test.module.course.author.id != request_user.id:
                 raise serializers.ValidationError("Only the course author can provide scores or comments.")
+
         return data
 
 
@@ -301,3 +317,9 @@ class StudentScoreSerializer(serializers.ModelSerializer):
     def get_full_name(self, obj):
         # Trả về first_name + " " + last_name
         return f"{obj.user.first_name} {obj.user.last_name}"
+
+
+class TeacherRegisterSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TeacherRegister
+        fields = ['front_degree_image', 'back_degree_image']

@@ -196,12 +196,12 @@ const CourseEdit = () => {
           {/* Bootstrap Modal for Image Change */}
           <Modal show={showModal} onHide={handleModalClose}>
             <Modal.Header closeButton>
-              <Modal.Title>Thay đổi hình bìa</Modal.Title>
+              <Modal.Title>Thay đổi ảnh bìa</Modal.Title>
             </Modal.Header>
             <Modal.Body>
               <Form>
                 <Form.Group controlId="formCoverImage">
-                  <Form.Label>Chọn hình bìa mới</Form.Label>
+                  <Form.Label>Chọn ảnh bìa mới</Form.Label>
                   <Form.Control
                     type="file"
                     name="cover_image"

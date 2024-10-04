@@ -19,6 +19,7 @@ import EssayTest from "./components/Test/EssayTest";
 import UserCourseShow from "./components/Course/UserCourseShow";
 import Forum from "./components/Forum/Forum";
 import Notification from "./components/layout/Notifications";
+import TestShow from "./components/Test/TestShow";
 
 const App = () => {
   return (
@@ -36,6 +37,7 @@ const App = () => {
           <Route path="/test-edit/:testId" element={<Test />} />
           <Route path="/essaytest/:testId" element={<EssayTest />} />
           <Route path="/course/:courseId" element={<UserCourseShow />} />
+          <Route path="/test" element={<TestShow />} />
           <Route path="/forum" element={<Forum />} />
           <Route path="/notification" element={<Notification />} />
           {/* Nested route for CourseEdit */}

@@ -29,6 +29,11 @@ const Module = ({ courseId }) => {
     description: "",
   });
   const [tests, setTests] = useState({});
+  const [newTest, setNewTest] = useState({
+    name: "", // The name of the test
+    module: null, // Module ID
+  });
+  const [showAddTestModal, setShowAddTestModal] = useState(false);
 
   const fetchModules = useCallback(async () => {
     try {
@@ -74,6 +79,9 @@ const Module = ({ courseId }) => {
         ...prevDetails,
         [moduleId]: response.data,
       }));
+
+      // Fetch tests for the module
+      await fetchTests(moduleId);
     } catch (err) {
       console.error("Lỗi khi lấy chi tiết module:", err);
       setDetailsError("Không thể tải chi tiết module.");
@@ -127,6 +135,59 @@ const Module = ({ courseId }) => {
       setLoadingDetails(false);
       setShowDeleteModal(false);
       setModuleToDelete(null);
+    }
+  };
+
+  const deleteTest = async (testId, moduleId) => {
+    setLoadingDetails(true);
+    setDetailsError(null);
+  
+    try {
+      // Call the delete API using the existing endpoint structure
+      await authAPIs().delete(`/modules/${moduleId}/tests/${testId}/`);
+  
+      // Update the state to remove the deleted test
+      setTests((prevTests) => ({
+        ...prevTests,
+        [moduleId]: prevTests[moduleId].filter((test) => test.id !== testId),
+      }));
+    } catch (err) {
+      console.error("Error deleting test:", err);
+      setDetailsError("Không thể xóa bài kiểm tra.");
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  const addTest = async (moduleId) => {
+    setLoadingDetails(true);
+    setDetailsError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("name", newTest.name); // Use name for the test name
+      formData.append("module", moduleId); // Include the module ID
+      formData.append("test_type", newTest.test_type); // Add test_type
+
+      const response = await authAPIs().post(
+        endpoints["Module-test"](moduleId),
+        formData
+      );
+
+      // Update the state to include the new test
+      setTests((prevTests) => ({
+        ...prevTests,
+        [moduleId]: [...(prevTests[moduleId] || []), response.data],
+      }));
+
+      // Reset the new test state
+      setNewTest({ name: "", module: null }); // Reset only name and module
+      setShowAddTestModal(false);
+    } catch (err) {
+      console.error("Error creating new test:", err);
+      setDetailsError("Cannot create new test.");
+    } finally {
+      setLoadingDetails(false);
     }
   };
 
@@ -290,14 +351,17 @@ const Module = ({ courseId }) => {
                         >
                           Chỉnh sửa
                         </Button>
-                        <h6 className="mt-3">Danh sách bài kiểm tra:</h6>
                         <Button
-                          variant="secondary"
-                          className="mb-2"
-                          onClick={() => fetchTests(module.id)}
+                          variant="danger" // Style for delete button
+                          className="ms-2" // Margin start for spacing
+                          onClick={() => {
+                            // Handle delete functionality here (not implemented)
+                            console.log(`Delete module ${module.id}`);
+                          }}
                         >
-                          Tải danh sách bài kiểm tra
+                          Xóa
                         </Button>
+                        <h6 className="mt-3">Danh sách bài kiểm tra:</h6>
                         {tests[module.id] ? (
                           <ListGroup>
                             {tests[module.id].map((test) => (
@@ -306,29 +370,50 @@ const Module = ({ courseId }) => {
                                 className="d-flex justify-content-between align-items-center"
                               >
                                 {test.name}
-                                {test.test_type === 1 ? (
-                                  <Link
-                                    to={`/essaytest/${test.id}`}
-                                    state={{ testInfo: test }}
-                                    className="btn btn-sm btn-primary"
+                                <div>
+                                  {test.test_type === 1 ? (
+                                    <Link
+                                      to={`/essaytest/${test.id}`}
+                                      state={{ testInfo: test }}
+                                      className="btn btn-sm btn-primary me-2" // Add margin end for spacing
+                                    >
+                                      Chỉnh sửa
+                                    </Link>
+                                  ) : (
+                                    <Link
+                                      to={`/test-edit/${test.id}`}
+                                      state={{ testInfo: test }}
+                                      className="btn btn-sm btn-primary me-2" // Add margin end for spacing
+                                    >
+                                      Chỉnh sửa
+                                    </Link>
+                                  )}
+                                  <Button
+                                    variant="danger"
+                                    size="sm"
+                                    onClick={() =>
+                                      deleteTest(test.id, module.id)
+                                    } // Call delete function
                                   >
-                                    Chỉnh sửa
-                                  </Link>
-                                ) : (
-                                  <Link
-                                    to={`/test-edit/${test.id}`}
-                                    state={{ testInfo: test }}
-                                    className="btn btn-sm btn-primary"
-                                  >
-                                    Chỉnh sửa
-                                  </Link>
-                                )}
+                                    Xóa
+                                  </Button>
+                                </div>
                               </ListGroup.Item>
                             ))}
                           </ListGroup>
                         ) : (
                           <p>Chưa có bài kiểm tra nào.</p>
                         )}
+                        <Button
+                          variant="success"
+                          className="mt-3"
+                          onClick={() => {
+                            setNewTest({ ...newTest, module: module.id });
+                            setShowAddTestModal(true);
+                          }}
+                        >
+                          Thêm bài kiểm tra
+                        </Button>
                       </>
                     )}
                   </div>
@@ -379,6 +464,49 @@ const Module = ({ courseId }) => {
           </Accordion.Body>
         </Accordion.Item>
       </Accordion>
+
+      <Modal show={showAddTestModal} onHide={() => setShowAddTestModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Thêm Bài Kiểm Tra</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Tên Bài Kiểm Tra:</Form.Label>
+              <Form.Control
+                type="text"
+                value={newTest.name}
+                onChange={(e) =>
+                  setNewTest({ ...newTest, name: e.target.value })
+                }
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Loại Bài Kiểm Tra:</Form.Label>
+              <Form.Select
+                onChange={(e) =>
+                  setNewTest({ ...newTest, test_type: Number(e.target.value) })
+                }
+              >
+                <option value="">Chọn loại</option> {/* Placeholder option */}
+                <option value={0}>Trắc Nghiệm</option>
+                <option value={1}>Tự Luận</option>
+              </Form.Select>
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="secondary"
+            onClick={() => setShowAddTestModal(false)}
+          >
+            Hủy
+          </Button>
+          <Button variant="primary" onClick={() => addTest(newTest.module)}>
+            Thêm
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
         <Modal.Header closeButton>

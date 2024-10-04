@@ -1,12 +1,11 @@
-# eLMS/LMS/urls.py
 from django.contrib import admin
 from django.urls import path, include
+
 from .views import CategoryListView, CourseListView, UserViewSet, CurrentUserViewSet, CourseCreateView, ModuleViewSet, \
     CourseMembershipViewSet, TestViewSet, QuestionViewSet, AnswerViewSet, NotificationViewSet, ForumViewSet, \
     PostViewSet, ReplyViewSet, FileViewSet, EssayAnswerViewSet, StudentAnswerViewSet, StudentScoreViewSet, \
-    PasswordResetViewSet, CourseDetailView, UserCourseMembershipView
+    PasswordResetViewSet, CourseDetailView, UserCourseMembershipView, TeacherRegisterViewSet
 from rest_framework.routers import DefaultRouter
-
 
 router = DefaultRouter()
 
@@ -31,10 +30,9 @@ router.register(r'student_answers', StudentAnswerViewSet, basename='studentanswe
 router.register(r'tests/(?P<test_id>\d+)/scores', StudentScoreViewSet, basename='student-score')
 router.register(r'password-reset', PasswordResetViewSet, basename='password-reset')
 router.register(r'user-membership-courses', UserCourseMembershipView, basename='user-membership-courses')
-
+router.register('teacher-register', TeacherRegisterViewSet, basename='teacher-register')
 
 urlpatterns = [
     path('', include(router.urls)),
     path('admin/', admin.site.urls),
-    # path('courses/<int:course_id>/', CourseDetailView.as_view({'get': 'retrieve'}), name='course-detail'),
-]
+    ]

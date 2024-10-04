@@ -143,7 +143,7 @@ class Reply(models.Model):
         super().save(*args, **kwargs)
         Notification.objects.create(
             user=self.question.user,
-            message=f"{self.user.username} đã trả lời câu hỏi '{self.question.title}'",
+            message=f"{self.user.first_name} {self.user.last_name} đã trả lời câu hỏi '{self.question.title}'",
             created_at=timezone.now()
         )
 
@@ -267,15 +267,12 @@ class Question(models.Model):
 class Answer(models.Model):
     question = models.ForeignKey(Question, related_name='answers', on_delete=models.CASCADE)
     choice = models.TextField()  # Content of the answer choice
-    is_correct = models.BooleanField(default=False)  # True if this is a correct answer
+    is_correct = models.BooleanField()  # True if this is a correct answer
 
     def save(self, *args, **kwargs):
-        # Check that the question is not an essay question
         if self.question.type != 0:
-            raise ValidationError(
-                "Câu hỏi tự luận không có đáp án!")  # "Essay questions do not have multiple-choice answers!"
+            raise ValidationError("Câu hỏi tự luận không có đáp án!")
 
-        # Remove the restriction on the number of answers
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -283,8 +280,7 @@ class Answer(models.Model):
 
 
 class EssayAnswer(models.Model):
-    question = models.OneToOneField('Question',
-                                    on_delete=models.CASCADE)  # Khóa ngoại đến Question xác định câu hỏi tự luận
+    question = models.ForeignKey('Question', on_delete=models.CASCADE)  # Khóa ngoại đến Question xác định câu hỏi tự luận
     user = models.ForeignKey(User, on_delete=models.CASCADE,
                              related_name='essay_answers')  # Khoá ngoại đến User xác định user nào làm bài
     answer_text = RichTextField()  # Ô trả lời
@@ -321,6 +317,29 @@ class CourseMembership(models.Model):
     def __str__(self):
         return f"{self.user.username} in {self.course.title}"
 
+    def calculate_total_tests(self):
+        """Calculate total number of tests in the course."""
+        return Test.objects.filter(module__course=self.course).count()
+
+    def update_progress(self):
+        """Update progress based on completed tests."""
+        total_tests = self.calculate_total_tests()
+        completed_tests = StudentScore.objects.filter(user=self.user, test__module__course=self.course).count()
+
+        if total_tests > 0:
+            # Each test contributes equally to progress
+            self.progress = (completed_tests / total_tests) * 100
+        else:
+            self.progress = 0
+
+        # Check if progress reaches 100% and update finish_date
+        if self.progress >= 100:
+            self.finish_date = timezone.now()  # Set to current date and time
+        else:
+            self.finish_date = None  # Optionally reset finish_date if not complete
+
+        self.save()
+
 
 class StudentScore(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -331,6 +350,10 @@ class StudentScore(models.Model):
     def save(self, *args, **kwargs):
         self.last_modified = timezone.now()
         super(StudentScore, self).save(*args, **kwargs)
+
+        # Update progress in CourseMembership after saving a score
+        course_membership = CourseMembership.objects.get(user=self.user, course=self.test.module.course)
+        course_membership.update_progress()
 
 
 class StudentAnswer(models.Model):
@@ -347,15 +370,47 @@ class StudentAnswer(models.Model):
         self.update_student_score()
 
     def update_student_score(self):
-        # Lấy tất cả câu trả lời của học sinh cho bài kiểm tra này
+        # Get all answers by the student for the test
         student_answers = StudentAnswer.objects.filter(user=self.user, question__test=self.question.test)
-        correct_answers = student_answers.filter(is_correct=True).count()
+
+        # Total score across all questions in the test
+        total_score = 0
         total_questions = self.question.test.questions.count()
 
-        # Tính điểm số tổng hợp (tính theo phần trăm)
-        score_percentage = (correct_answers / total_questions) * 100 if total_questions > 0 else 0
+        # Iterate through all questions to calculate the score
+        for question in self.question.test.questions.all():
+            correct_answers = Answer.objects.filter(question=question, is_correct=True).count()
+            selected_answers = student_answers.filter(question=question).values_list('selected_answer', flat=True)
 
-        # Cập nhật điểm số của học sinh
+            # New condition: If there are more than 1 correct answer and the user submits more answers than correct
+            if correct_answers > 1 and len(selected_answers) > correct_answers:
+                # Score for this question is 0%
+                question_score = 0
+            else:
+                # Count how many selected answers are correct
+                selected_correct_answers = student_answers.filter(question=question, is_correct=True).count()
+
+                # Calculate the score for the question
+                if correct_answers > 0:
+                    # Score based on the number of correct answers submitted
+                    question_score = (selected_correct_answers / correct_answers) * (100 / total_questions)
+                else:
+                    question_score = 0
+
+            # Accumulate total score
+            total_score += question_score
+
+        # Update the student's score record
         score_record, created = StudentScore.objects.get_or_create(user=self.user, test=self.question.test)
-        score_record.score = score_percentage
+        score_record.score = total_score  # Updated total score calculation
         score_record.save()
+
+
+class TeacherRegister(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)  # The user applying to become a teacher
+    front_degree_image = CloudinaryField('front_degree')  # Front image of the degree
+    back_degree_image = CloudinaryField('back_degree')  # Back image of the degree
+    submitted_at = models.DateTimeField(default=timezone.now)  # Submission timestamp
+
+    def __str__(self):
+        return f"Teacher Registration for {self.user.username}"

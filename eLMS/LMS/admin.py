@@ -1,13 +1,16 @@
 # Nơi tạo view cho AdminSite
 # eLMS/LMS/admin.py
 
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin
+from django.core.mail import send_mail
+from django.shortcuts import get_object_or_404, redirect
+from django.utils.html import format_html
 
 from .forms import AnswerForm, CustomUserCreationForm, CustomUserChangeForm, CourseForm, ModuleForm, PostForm, \
     ReplyForm, QuestionForm, EssayAnswerForm, CourseMembershipForm, StudentAnswerForm
 from .models import User, Category, Course, Module, Post, Reply, Notification, Forum, File, Test, Question, \
-    Answer, EssayAnswer, CourseMembership, StudentScore, StudentAnswer
+    Answer, EssayAnswer, CourseMembership, StudentScore, StudentAnswer, TeacherRegister
 
 
 class CustomUserAdmin(UserAdmin):
@@ -201,6 +204,49 @@ class FileAdmin(admin.ModelAdmin):
         return False
 
 
+class TeacherRegisterAdmin(admin.ModelAdmin):
+    list_display = ['user', 'user_email', 'submitted_at', 'degree_images']
+    readonly_fields = ['user', 'user_email', 'submitted_at', 'front_degree_image', 'back_degree_image']
+
+    fieldsets = (
+        ('User Information', {
+            'fields': ('user', 'user_email', 'submitted_at'),
+        }),
+        ('Degree Images', {
+            'fields': ('front_degree_image', 'back_degree_image'),
+        }),
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    # Bỏ hoặc sửa phương thức này
+    def has_delete_permission(self, request, obj=None):
+        return True  # Cho phép xóa
+
+    # Các phương thức khác giữ nguyên
+    def user_email(self, obj):
+        return obj.user.email
+    user_email.short_description = 'Email'
+
+    def degree_images(self, obj):
+        from cloudinary.utils import cloudinary_url
+
+        front_image_url = cloudinary_url(obj.front_degree_image.public_id)[0] if obj.front_degree_image else ''
+        back_image_url = cloudinary_url(obj.back_degree_image.public_id)[0] if obj.back_degree_image else ''
+
+        return format_html(
+            '<a href="{}" target="_blank">'
+            '<img src="{}" width="100" height="100" style="cursor: pointer;"/></a> '
+            '<a href="{}" target="_blank">'
+            '<img src="{}" width="100" height="100" style="cursor: pointer;"/></a>',
+            front_image_url, front_image_url, back_image_url, back_image_url
+        )
+    degree_images.short_description = 'Degree Images'
+
 admin.site.register(Category, CategoryAdmin)
 admin.site.register(Course, CourseAdmin)
 admin.site.register(Module, ModuleAdmin)
@@ -217,3 +263,4 @@ admin.site.register(CourseMembership, CourseMembershipAdmin)
 admin.site.register(StudentScore, StudentScoreAdmin)
 admin.site.register(StudentAnswer, StudentAnswerAdmin)
 admin.site.register(File, FileAdmin)
+admin.site.register(TeacherRegister, TeacherRegisterAdmin)
