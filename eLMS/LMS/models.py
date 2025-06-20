@@ -5,7 +5,7 @@ from datetime import date
 import cloudinary
 import cloudinary.api
 import cloudinary.uploader
-from ckeditor.fields import RichTextField
+from ckeditor5.fields import RichTextField
 from cloudinary.models import CloudinaryField
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser

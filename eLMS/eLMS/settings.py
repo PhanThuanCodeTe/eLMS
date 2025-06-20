@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 from pathlib import Path
 from decouple import config
 import cloudinary
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -44,8 +45,7 @@ INSTALLED_APPS = [
     'django_mysql',
     'cloudinary',
     'cloudinary_storage',
-    'ckeditor',
-    'ckeditor_uploader',
+    'ckeditor5',
     'rest_framework',
     'oauth2_provider',
     'corsheaders',
@@ -87,7 +87,7 @@ MIDDLEWARE = [
 CKEDITOR_UPLOAD_PATH = 'static/uploads/'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = BASE_DIR / 'media/'
 
 ROOT_URLCONF = 'eLMS.urls'
 
@@ -208,4 +208,16 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
     ),
+}
+
+CKEDITOR_5_CONFIGS = {
+    'default': {
+        'toolbar': [
+            'heading', '|',
+            'bold', 'italic', 'link', 'bulletedList', 'numberedList', 'blockQuote', '|',
+            'imageUpload', 'insertTable', 'mediaEmbed', '|',
+            'undo', 'redo'
+        ],
+        'language': 'vi',
+    }
 }

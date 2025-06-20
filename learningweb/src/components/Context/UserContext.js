@@ -32,6 +32,9 @@ export const UserProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
+      console.log("client id secet", process.env.REACT_APP_CLIENT_ID);
+      console.log("client id secet", process.env.REACT_APP_CLIENT_SECRET);
+
       const api = authAPIs();
       const formData = new FormData();
       formData.append('grant_type', 'password');
