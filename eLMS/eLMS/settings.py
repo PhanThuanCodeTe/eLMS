@@ -151,11 +151,11 @@ WSGI_APPLICATION = 'eLMS.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'lms',  # Tên cơ sở dữ liệu bạn đã tạo
-        'USER': 'root',  # Tên người dùng MySQL
-        'PASSWORD': 'Admin@123',  # Mật khẩu người dùng MySQL
-        'HOST': 'localhost',  # Địa chỉ host của MySQL server, thường là 'localhost'
-        'PORT': '3306',  # Cổng của MySQL server, mặc định là 3306
+        'NAME': os.getenv('DB_NAME', 'lms'),
+        'USER': os.getenv('DB_USER', 'root'),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'Admin@123'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '3306'),
     }
 }
 
