@@ -10,6 +10,10 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.mail import send_mail
 from django.shortcuts import render, get_object_or_404
 from django.utils import timezone
+from django.http import JsonResponse
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+from oauth2_provider.views import TokenView
 from rest_framework import generics, permissions, viewsets
 from rest_framework import status
 from rest_framework.decorators import action
@@ -1030,3 +1034,33 @@ class TeacherRegisterViewSet(viewsets.GenericViewSet):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class CustomTokenView(TokenView):
+    def post(self, request, *args, **kwargs):
+        # Parse raw POST body
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+
+        user = None
+        if username:
+            try:
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                user = User.objects.get(email=username)
+            except User.DoesNotExist:
+                return JsonResponse({
+                    "error": "invalid_grant",
+                    "error_description": "Email not found."
+                }, status=400)
+
+        # Check password
+        if user and not user.check_password(password):
+            return JsonResponse({
+                "error": "invalid_grant",
+                "error_description": "Invalid password."
+            }, status=400)
+
+        # Nếu mọi thứ đúng, gọi hàm gốc để xử lý tiếp
+        return super().post(request, *args, **kwargs)

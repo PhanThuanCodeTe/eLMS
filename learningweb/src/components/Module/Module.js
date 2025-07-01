@@ -1,17 +1,50 @@
 import React, { useState, useEffect, useCallback } from "react";
-import {
-  Spinner,
-  Alert,
-  Accordion,
-  Form,
-  Button,
-  Modal,
-  ListGroup,
-} from "react-bootstrap";
+import { 
+  CircularProgress, 
+  Alert, 
+  Accordion, 
+  AccordionSummary, 
+  AccordionDetails, 
+  TextField, 
+  Button, 
+  Tabs,
+  Tab,
+  Box,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
+  Card,
+  Typography
+} from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { authAPIs, endpoints } from "../../configs/APIs";
 import { CKEditor } from "@ckeditor/ckeditor5-react";
 import ClassicEditor from "@ckeditor/ckeditor5-build-classic";
-import { Link } from "react-router-dom";
+import ModuleDetails from "./components/ModuleDetails";
+import TestInModule from "./components/TestInModule";
+
+// Tab Panel Component
+function TabPanel(props) {
+  const { children, value, index, ...other } = props;
+
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`module-tabpanel-${index}`}
+      aria-labelledby={`module-tab-${index}`}
+      {...other}
+    >
+      {value === index && (
+        <Box sx={{ p: 3 }}>
+          {children}
+        </Box>
+      )}
+    </div>
+  );
+}
 
 const Module = ({ courseId }) => {
   const [modules, setModules] = useState([]);
@@ -21,8 +54,13 @@ const Module = ({ courseId }) => {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [detailsError, setDetailsError] = useState(null);
   const [editingModule, setEditingModule] = useState(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  
+  // Delete confirmation states
+  const [showDeleteModuleModal, setShowDeleteModuleModal] = useState(false);
+  const [showDeleteTestModal, setShowDeleteTestModal] = useState(false);
   const [moduleToDelete, setModuleToDelete] = useState(null);
+  const [testToDelete, setTestToDelete] = useState({ testId: null, moduleId: null });
+  
   const [newModule, setNewModule] = useState({
     title: "",
     youtube_url: "",
@@ -30,10 +68,14 @@ const Module = ({ courseId }) => {
   });
   const [tests, setTests] = useState({});
   const [newTest, setNewTest] = useState({
-    name: "", // The name of the test
-    module: null, // Module ID
+    name: "",
+    module: null,
+    test_type: "",
   });
   const [showAddTestModal, setShowAddTestModal] = useState(false);
+  
+  // Tab states for each module
+  const [moduleTabs, setModuleTabs] = useState({});
 
   const fetchModules = useCallback(async () => {
     try {
@@ -59,7 +101,7 @@ const Module = ({ courseId }) => {
     } catch (err) {
       console.error("Lỗi khi lấy danh sách bài kiểm tra:", err);
     }
-  }, []);
+  }, [tests]);
 
   useEffect(() => {
     fetchModules();
@@ -79,8 +121,6 @@ const Module = ({ courseId }) => {
         ...prevDetails,
         [moduleId]: response.data,
       }));
-
-      // Fetch tests for the module
       await fetchTests(moduleId);
     } catch (err) {
       console.error("Lỗi khi lấy chi tiết module:", err);
@@ -112,6 +152,11 @@ const Module = ({ courseId }) => {
     }
   };
 
+  const confirmDeleteModule = (moduleId) => {
+    setModuleToDelete(moduleId);
+    setShowDeleteModuleModal(true);
+  };
+
   const deleteModule = async () => {
     if (!moduleToDelete) return;
 
@@ -128,25 +173,33 @@ const Module = ({ courseId }) => {
         delete newDetails[moduleToDelete];
         return newDetails;
       });
+      setTests((prevTests) => {
+        const newTests = { ...prevTests };
+        delete newTests[moduleToDelete];
+        return newTests;
+      });
     } catch (err) {
       console.error("Lỗi khi xóa module:", err);
       setDetailsError("Không thể xóa module.");
     } finally {
       setLoadingDetails(false);
-      setShowDeleteModal(false);
+      setShowDeleteModuleModal(false);
       setModuleToDelete(null);
     }
   };
 
-  const deleteTest = async (testId, moduleId) => {
+  const confirmDeleteTest = (testId, moduleId) => {
+    setTestToDelete({ testId, moduleId });
+    setShowDeleteTestModal(true);
+  };
+
+  const deleteTest = async () => {
+    const { testId, moduleId } = testToDelete;
     setLoadingDetails(true);
     setDetailsError(null);
-  
+
     try {
-      // Call the delete API using the existing endpoint structure
       await authAPIs().delete(`/modules/${moduleId}/tests/${testId}/`);
-  
-      // Update the state to remove the deleted test
       setTests((prevTests) => ({
         ...prevTests,
         [moduleId]: prevTests[moduleId].filter((test) => test.id !== testId),
@@ -156,6 +209,8 @@ const Module = ({ courseId }) => {
       setDetailsError("Không thể xóa bài kiểm tra.");
     } finally {
       setLoadingDetails(false);
+      setShowDeleteTestModal(false);
+      setTestToDelete({ testId: null, moduleId: null });
     }
   };
 
@@ -165,27 +220,25 @@ const Module = ({ courseId }) => {
 
     try {
       const formData = new FormData();
-      formData.append("name", newTest.name); // Use name for the test name
-      formData.append("module", moduleId); // Include the module ID
-      formData.append("test_type", newTest.test_type); // Add test_type
+      formData.append("name", newTest.name);
+      formData.append("module", moduleId);
+      formData.append("test_type", newTest.test_type);
 
       const response = await authAPIs().post(
         endpoints["Module-test"](moduleId),
         formData
       );
 
-      // Update the state to include the new test
       setTests((prevTests) => ({
         ...prevTests,
         [moduleId]: [...(prevTests[moduleId] || []), response.data],
       }));
 
-      // Reset the new test state
-      setNewTest({ name: "", module: null }); // Reset only name and module
+      setNewTest({ name: "", module: null, test_type: "" });
       setShowAddTestModal(false);
     } catch (err) {
       console.error("Error creating new test:", err);
-      setDetailsError("Cannot create new test.");
+      setDetailsError("Không thể tạo bài kiểm tra.");
     } finally {
       setLoadingDetails(false);
     }
@@ -210,19 +263,9 @@ const Module = ({ courseId }) => {
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setEditingModule((prev) => ({ ...prev, [name]: value }));
-  };
-
   const handleNewModuleInputChange = (e) => {
     const { name, value } = e.target;
     setNewModule((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleEditorChange = (event, editor) => {
-    const data = editor.getData();
-    setEditingModule((prev) => ({ ...prev, description: data }));
   };
 
   const handleNewModuleEditorChange = (event, editor) => {
@@ -230,299 +273,225 @@ const Module = ({ courseId }) => {
     setNewModule((prev) => ({ ...prev, description: data }));
   };
 
-  const getYouTubeVideoId = (url) => {
-    const regExp =
-      /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    const match = url.match(regExp);
-    return match && match[2].length === 11 ? match[2] : null;
+  const handleTabChange = (moduleId, newValue) => {
+    setModuleTabs(prev => ({
+      ...prev,
+      [moduleId]: newValue
+    }));
   };
 
   if (loading) {
-    return <Spinner animation="border" />;
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <CircularProgress />
+      </Box>
+    );
   }
 
   if (error) {
-    return <Alert variant="danger">{error}</Alert>;
+    return (
+      <Alert severity="error" sx={{ mt: 2 }}>
+        {error}
+      </Alert>
+    );
   }
 
   return (
-    <div>
-      <Accordion>
-        {modules.length > 0 ? (
-          modules.map((module) => (
-            <Accordion.Item key={module.id} eventKey={module.id.toString()}>
-              <Accordion.Header onClick={() => fetchModuleDetails(module.id)}>
-                {module.title}
-              </Accordion.Header>
-              <Accordion.Body>
-                {loadingDetails && !moduleDetails[module.id] ? (
-                  <Spinner animation="border" />
-                ) : detailsError ? (
-                  <Alert variant="danger">{detailsError}</Alert>
-                ) : moduleDetails[module.id] ? (
-                  <div>
-                    {editingModule && editingModule.id === module.id ? (
-                      <Form>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Tên Module:</Form.Label>
-                          <Form.Control
-                            type="text"
-                            name="title"
-                            value={editingModule.title}
-                            onChange={handleInputChange}
-                          />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                          <Form.Label>YouTube URL:</Form.Label>
-                          <Form.Control
-                            type="text"
-                            name="youtube_url"
-                            value={editingModule.youtube_url}
-                            onChange={handleInputChange}
-                          />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Nội dung:</Form.Label>
-                          <CKEditor
-                            editor={ClassicEditor}
-                            data={editingModule.description}
-                            onChange={handleEditorChange}
-                          />
-                        </Form.Group>
-                        <Button
-                          variant="primary"
-                          onClick={() => updateModuleDetails(module.id)}
-                        >
-                          Lưu thay đổi
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          onClick={() => setEditingModule(null)}
-                        >
-                          Hủy
-                        </Button>
-                        <Button
-                          variant="danger"
-                          className="float-end"
-                          onClick={() => {
-                            setModuleToDelete(module.id);
-                            setShowDeleteModal(true);
-                          }}
-                        >
-                          Xóa
-                        </Button>
-                      </Form>
-                    ) : (
-                      <>
-                        <h5>Tên Module: {moduleDetails[module.id].title}</h5>
-                        <p>
-                          <strong>YouTube URL: </strong>
-                          <a
-                            href={moduleDetails[module.id].youtube_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            {moduleDetails[module.id].youtube_url}
-                          </a>
-                        </p>
-                        {moduleDetails[module.id].youtube_url && (
-                          <div className="embed-responsive embed-responsive-16by9 mb-3">
-                            <iframe
-                              className="embed-responsive-item"
-                              src={`https://www.youtube.com/embed/${getYouTubeVideoId(
-                                moduleDetails[module.id].youtube_url
-                              )}`}
-                              allowFullScreen
-                              title={moduleDetails[module.id].title}
-                            ></iframe>
-                          </div>
-                        )}
-                        <h6>Nội dung:</h6>
-                        <div
-                          dangerouslySetInnerHTML={{
-                            __html: moduleDetails[module.id].description,
-                          }}
-                        />
-                        <Button
-                          variant="primary"
-                          onClick={() =>
-                            setEditingModule(moduleDetails[module.id])
-                          }
-                        >
-                          Chỉnh sửa
-                        </Button>
-                        <Button
-                          variant="danger" // Style for delete button
-                          className="ms-2" // Margin start for spacing
-                          onClick={() => {
-                            // Handle delete functionality here (not implemented)
-                            console.log(`Delete module ${module.id}`);
-                          }}
-                        >
-                          Xóa
-                        </Button>
-                        <h6 className="mt-3">Danh sách bài kiểm tra:</h6>
-                        {tests[module.id] ? (
-                          <ListGroup>
-                            {tests[module.id].map((test) => (
-                              <ListGroup.Item
-                                key={test.id}
-                                className="d-flex justify-content-between align-items-center"
-                              >
-                                {test.name}
-                                <div>
-                                  {test.test_type === 1 ? (
-                                    <Link
-                                      to={`/essaytest/${test.id}`}
-                                      state={{ testInfo: test }}
-                                      className="btn btn-sm btn-primary me-2" // Add margin end for spacing
-                                    >
-                                      Chỉnh sửa
-                                    </Link>
-                                  ) : (
-                                    <Link
-                                      to={`/test-edit/${test.id}`}
-                                      state={{ testInfo: test }}
-                                      className="btn btn-sm btn-primary me-2" // Add margin end for spacing
-                                    >
-                                      Chỉnh sửa
-                                    </Link>
-                                  )}
-                                  <Button
-                                    variant="danger"
-                                    size="sm"
-                                    onClick={() =>
-                                      deleteTest(test.id, module.id)
-                                    } // Call delete function
-                                  >
-                                    Xóa
-                                  </Button>
-                                </div>
-                              </ListGroup.Item>
-                            ))}
-                          </ListGroup>
-                        ) : (
-                          <p>Chưa có bài kiểm tra nào.</p>
-                        )}
-                        <Button
-                          variant="success"
-                          className="mt-3"
-                          onClick={() => {
-                            setNewTest({ ...newTest, module: module.id });
-                            setShowAddTestModal(true);
-                          }}
-                        >
-                          Thêm bài kiểm tra
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <p>Bạn chưa ghi gì vào module này</p>
-                )}
-              </Accordion.Body>
-            </Accordion.Item>
-          ))
-        ) : (
-          <Alert variant="info">Không có module nào.</Alert>
-        )}
+    <Box sx={{ p: 3 }}>
+      {/* Module List */}
+      {modules.length > 0 ? (
+        <Box sx={{ mb: 4 }}>
+          {modules.map((module, index) => (
+            <Card key={module.id} sx={{ mb: 3, boxShadow: 2 }}>
+              <Accordion 
+                sx={{ 
+                  boxShadow: 'none',
+                  '&:before': { display: 'none' }
+                }}
+              >
+                <AccordionSummary
+                  expandIcon={<ExpandMoreIcon />}
+                  onClick={() => fetchModuleDetails(module.id)}
+                  sx={{ 
+                    backgroundColor: '#f5f5f5',
+                    '&:hover': { backgroundColor: '#e0e0e0' },
+                    borderRadius: '4px 4px 0 0'
+                  }}
+                >
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    Module {index + 1}: {module.title}
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails sx={{ p: 0 }}>
+                  <Box sx={{ width: '100%' }}>
+                    <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                      <Tabs 
+                        value={moduleTabs[module.id] || 0} 
+                        onChange={(e, newValue) => handleTabChange(module.id, newValue)}
+                        aria-label="module tabs"
+                      >
+                        <Tab label="Nội dung Module" />
+                        <Tab label="Bài kiểm tra" />
+                      </Tabs>
+                    </Box>
+                    
+                    <TabPanel value={moduleTabs[module.id] || 0} index={0}>
+                      <ModuleDetails
+                        module={module}
+                        moduleDetails={moduleDetails[module.id]}
+                        editingModule={editingModule}
+                        setEditingModule={setEditingModule}
+                        loadingDetails={loadingDetails}
+                        detailsError={detailsError}
+                        updateModuleDetails={updateModuleDetails}
+                        setModuleToDelete={setModuleToDelete}
+                        setShowDeleteModal={setShowDeleteModuleModal}
+                      />
+                    </TabPanel>
+                    
+                    <TabPanel value={moduleTabs[module.id] || 0} index={1}>
+                      <TestInModule
+                        moduleId={module.id}
+                        tests={tests[module.id] || []}
+                        deleteTest={deleteTest}
+                        showAddTestModal={showAddTestModal}
+                        setShowAddTestModal={setShowAddTestModal}
+                        newTest={newTest}
+                        setNewTest={setNewTest}
+                        addTest={addTest}
+                        showDeleteTestModal={showDeleteTestModal}
+                        setShowDeleteTestModal={setShowDeleteTestModal}
+                        confirmDeleteTest={confirmDeleteTest}
+                        loadingDetails={loadingDetails}
+                        detailsError={detailsError}
+                      />
+                    </TabPanel>
+                  </Box>
+                </AccordionDetails>
+              </Accordion>
+            </Card>
+          ))}
+        </Box>
+      ) : (
+        <Alert severity="info" sx={{ mb: 4 }}>
+          Không có module nào.
+        </Alert>
+      )}
 
-        <Accordion.Item eventKey="new-module">
-          <Accordion.Header>Thêm 1 Module mới cho Khóa học</Accordion.Header>
-          <Accordion.Body>
-            <Form>
-              <Form.Group className="mb-3">
-                <Form.Label>Tên Module:</Form.Label>
-                <Form.Control
-                  type="text"
-                  name="title"
-                  value={newModule.title}
-                  onChange={handleNewModuleInputChange}
-                />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>YouTube URL:</Form.Label>
-                <Form.Control
-                  type="text"
-                  name="youtube_url"
-                  value={newModule.youtube_url}
-                  onChange={handleNewModuleInputChange}
-                />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Nội dung:</Form.Label>
+      {/* Add New Module Section */}
+      <Card sx={{ boxShadow: 2 }}>
+        <Accordion sx={{ boxShadow: 'none', '&:before': { display: 'none' } }}>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            sx={{ 
+              backgroundColor: '#e8f5e8',
+              '&:hover': { backgroundColor: '#d4edda' },
+              borderRadius: '4px 4px 0 0'
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 600, color: '#28a745' }}>
+              ➕ Thêm Module Mới cho Khóa học
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <TextField
+                label="Tên Module"
+                name="title"
+                value={newModule.title}
+                onChange={handleNewModuleInputChange}
+                fullWidth
+                variant="outlined"
+                required
+              />
+              <TextField
+                label="YouTube URL"
+                name="youtube_url"
+                value={newModule.youtube_url}
+                onChange={handleNewModuleInputChange}
+                fullWidth
+                variant="outlined"
+                placeholder="https://www.youtube.com/watch?v=..."
+              />
+              <Box>
+                <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 500 }}>
+                  Nội dung Module:
+                </Typography>
                 <CKEditor
                   editor={ClassicEditor}
                   data={newModule.description}
                   onChange={handleNewModuleEditorChange}
                 />
-              </Form.Group>
-              <Button variant="primary" onClick={createNewModule}>
-                Tạo Module Mới
-              </Button>
-            </Form>
-          </Accordion.Body>
-        </Accordion.Item>
-      </Accordion>
+              </Box>
+              <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                <Button
+                  variant="outlined"
+                  onClick={() => setNewModule({ title: "", youtube_url: "", description: "" })}
+                >
+                  Xóa form
+                </Button>
+                <Button
+                  variant="contained"
+                  color="success"
+                  onClick={createNewModule}
+                  disabled={!newModule.title.trim()}
+                  sx={{ minWidth: 150 }}
+                >
+                  Tạo Module Mới
+                </Button>
+              </Box>
+            </Box>
+          </AccordionDetails>
+        </Accordion>
+      </Card>
 
-      <Modal show={showAddTestModal} onHide={() => setShowAddTestModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>Thêm Bài Kiểm Tra</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>Tên Bài Kiểm Tra:</Form.Label>
-              <Form.Control
-                type="text"
-                value={newTest.name}
-                onChange={(e) =>
-                  setNewTest({ ...newTest, name: e.target.value })
-                }
-              />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Loại Bài Kiểm Tra:</Form.Label>
-              <Form.Select
-                onChange={(e) =>
-                  setNewTest({ ...newTest, test_type: Number(e.target.value) })
-                }
-              >
-                <option value="">Chọn loại</option> {/* Placeholder option */}
-                <option value={0}>Trắc Nghiệm</option>
-                <option value={1}>Tự Luận</option>
-              </Form.Select>
-            </Form.Group>
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
+      {/* Delete Module Confirmation Dialog */}
+      <Dialog
+        open={showDeleteModuleModal}
+        onClose={() => setShowDeleteModuleModal(false)}
+        aria-labelledby="delete-module-dialog"
+      >
+        <DialogTitle sx={{ color: 'error.main' }}>
+          ⚠️ Xác nhận xóa Module
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Bạn có chắc chắn muốn xóa module này không? 
+            <br />
+            <strong>Hành động này không thể hoàn tác và sẽ xóa tất cả bài kiểm tra trong module.</strong>
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
           <Button
-            variant="secondary"
-            onClick={() => setShowAddTestModal(false)}
+            onClick={() => setShowDeleteModuleModal(false)}
+            variant="outlined"
           >
             Hủy
           </Button>
-          <Button variant="primary" onClick={() => addTest(newTest.module)}>
-            Thêm
+          <Button 
+            onClick={deleteModule} 
+            variant="contained" 
+            color="error"
+            autoFocus
+          >
+            Xác nhận xóa
           </Button>
-        </Modal.Footer>
-      </Modal>
+        </DialogActions>
+      </Dialog>
 
-      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>Xác nhận xóa</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>Bạn có chắc chắn xóa?</Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
-            Hủy
-          </Button>
-          <Button variant="danger" onClick={deleteModule}>
-            Xóa
-          </Button>
-        </Modal.Footer>
-      </Modal>
-    </div>
+      {/* Loading and Error Display */}
+      {loadingDetails && (
+        <Box sx={{ position: 'fixed', top: 20, right: 20, zIndex: 9999 }}>
+          <CircularProgress size={30} />
+        </Box>
+      )}
+      
+      {detailsError && (
+        <Alert severity="error" sx={{ position: 'fixed', top: 20, left: 20, right: 20, zIndex: 9999 }}>
+          {detailsError}
+        </Alert>
+      )}
+    </Box>
   );
 };
 

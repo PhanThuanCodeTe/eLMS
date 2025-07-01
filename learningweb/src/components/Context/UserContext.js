@@ -31,43 +31,38 @@ export const UserProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
-    try {
-      console.log("client id secet", process.env.REACT_APP_CLIENT_ID);
-      console.log("client id secet", process.env.REACT_APP_CLIENT_SECRET);
+  try {
+    const api = authAPIs();
+    const formData = new FormData();
+    formData.append('grant_type', 'password');
+    formData.append('username', email);
+    formData.append('password', password);
+    formData.append('client_id', process.env.REACT_APP_CLIENT_ID);
+    formData.append('client_secret', process.env.REACT_APP_CLIENT_SECRET);
 
-      const api = authAPIs();
-      const formData = new FormData();
-      formData.append('grant_type', 'password');
-      formData.append('username', email);
-      formData.append('password', password);
-      formData.append('client_id', process.env.REACT_APP_CLIENT_ID);
-      formData.append('client_secret', process.env.REACT_APP_CLIENT_SECRET);
-  
-      const response = await api.post(endpoints.login, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-  
-      const { access_token } = response.data;
-      cookie.save('authToken', access_token, { path: '/' });
-  
-      await fetchUserInfo();
-    } catch (error) {
-      if (error.response && error.response.data) {
-        // Check for specific error response data
-        const { error: errorCode, error_description: errorDescription } = error.response.data;
-  
-        if (errorCode === 'invalid_grant' && errorDescription === 'Invalid credentials given.') {
-          // Show specific error message for invalid credentials
-          console.error("Đăng nhập thất bại. Tài khoản hoăc mật khẩu sai!");
-          throw new Error('Đăng nhập thất bại. Tài khoản hoăc mật khẩu sai!');
-        }
+    const response = await api.post(endpoints.login, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    const { access_token } = response.data;
+    cookie.save('authToken', access_token, { path: '/' });
+
+    await fetchUserInfo();
+  } catch (error) {
+    let message = 'Đăng nhập thất bại. Vui lòng thử lại.';
+
+    if (error.response?.data) {
+      const { error_description } = error.response.data;
+      if (error_description) {
+        message = `Đăng nhập thất bại: ${error_description}`;
       }
-  
-      // Handle any other errors
-      console.error("Đăng nhập thất bại. Tài khoản hoăc mật khẩu sai!", error);
-      throw new Error('Đăng nhập thất bại. Tài khoản hoăc mật khẩu sai!');
     }
-  };
+
+    console.error(message, error);
+    throw new Error(message);
+  }
+};
+
 
   const logout = () => {
     cookie.remove('authToken', { path: '/' });

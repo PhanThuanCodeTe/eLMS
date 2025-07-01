@@ -1,63 +1,63 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useLocation, useParams } from "react-router-dom";
-import {
-  Accordion,
-  Button,
-  Form,
-  Spinner,
-  Alert,
-  Offcanvas,
-  Modal,
-} from "react-bootstrap";
+import { authAPIs, endpoints } from "../../configs/APIs";
 import { CKEditor } from "@ckeditor/ckeditor5-react";
 import ClassicEditor from "@ckeditor/ckeditor5-build-classic";
-import { authAPIs, endpoints } from "../../configs/APIs";
+import {
+  Typography,
+  CircularProgress,
+  Alert,
+  Drawer,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Fade,
+  Grow,
+  Button,
+} from "@mui/material";
+import TestInfo from "./components/TestInfo";
+import QuestionInTest from "./components/QuestionInTest";
 
 const EssayTest = () => {
   const location = useLocation();
   const { testId } = useParams();
-  const testInfo = location.state?.testInfo;
-
+  const initialTestInfo = location.state?.testInfo;
   const [questions, setQuestions] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [testInfo, setTestInfo] = useState(initialTestInfo);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [editingQuestion, setEditingQuestion] = useState(null);
-  const [newQuestion, setNewQuestion] = useState({
-    content: "",
-    type: testInfo?.test_type || 1, // Essay test type = 1
-  });
-
   const [showOffcanvas, setShowOffcanvas] = useState(false);
-  const [selectedQuestion, setSelectedQuestion] = useState(null); // For grading
-  const [studentAnswers, setStudentAnswers] = useState([]); // To store student answers for the selected question
+  const [selectedQuestion, setSelectedQuestion] = useState(null);
+  const [studentAnswers, setStudentAnswers] = useState([]);
   const [loadingAnswers, setLoadingAnswers] = useState(false);
   const [gradingAnswer, setGradingAnswer] = useState(null);
   const [showGradingModal, setShowGradingModal] = useState(false);
 
-  const handleCloseOffcanvas = () => setShowOffcanvas(false);
-  const handleShowOffcanvas = (question) => {
-    setSelectedQuestion(question);
-    fetchStudentAnswers(question.id);
-    setShowOffcanvas(true);
-  };
-
   const fetchStudentAnswers = async (questionId) => {
+    if (!questionId) return;
     setLoadingAnswers(true);
     setError(null);
-
     try {
       const response = await authAPIs().get(
         `${endpoints["essay-awnswer"]}get-student-answer/?question_id=${questionId}`
       );
-
       const sortedAnswers = response.data.sort((a, b) => a.score - b.score);
       setStudentAnswers(sortedAnswers);
     } catch (err) {
       console.error("Error fetching student answers:", err);
       setError("Không thể tải các câu trả lời của học sinh.");
+      setTimeout(() => setError(null), 5000); // Xóa lỗi sau 5 giây
     } finally {
       setLoadingAnswers(false);
     }
+  };
+
+  const handleShowOffcanvas = (question) => {
+    setSelectedQuestion(question);
+    fetchStudentAnswers(question.id);
+    setShowOffcanvas(true);
   };
 
   const handleGradeAnswer = (answer) => {
@@ -83,7 +83,6 @@ const EssayTest = () => {
           teacher_comments: gradingAnswer.teacher_comments,
         }
       );
-
       setStudentAnswers(
         (prev) =>
           prev
@@ -92,28 +91,39 @@ const EssayTest = () => {
             )
             .sort((a, b) => a.score - b.score)
       );
-
       setShowGradingModal(false);
       setGradingAnswer(null);
     } catch (err) {
       console.error("Error updating grade:", err);
       setError("Không thể cập nhật điểm số.");
+      setTimeout(() => setError(null), 5000);
     }
   };
 
   const fetchQuestions = useCallback(async () => {
-    setLoading(true);
-    setError(null);
     try {
+      setLoading(true);
       const response = await authAPIs().get(endpoints["test-question"](testId));
       setQuestions(response.data);
+      setTestInfo((prev) => ({
+        ...prev,
+        num_questions: response.data.length,
+      }));
     } catch (err) {
       console.error("Error fetching questions:", err);
       setError("Không thể tải câu hỏi.");
+      setTimeout(() => setError(null), 5000);
     } finally {
       setLoading(false);
     }
   }, [testId]);
+
+  const updateTestInfo = useCallback((newQuestionCount) => {
+    setTestInfo((prev) => ({
+      ...prev,
+      num_questions: newQuestionCount,
+    }));
+  }, []);
 
   useEffect(() => {
     if (testId) {
@@ -121,251 +131,189 @@ const EssayTest = () => {
     }
   }, [fetchQuestions, testId]);
 
-  const handleQuestionEdit = (question) => {
-    setEditingQuestion(question);
-  };
-
-  const handleEditorChange = (event, editor) => {
-    const data = editor.getData();
-    setEditingQuestion((prev) => ({ ...prev, content: data }));
-  };
-
-  const handleNewQuestionEditorChange = (event, editor) => {
-    const data = editor.getData();
-    setNewQuestion((prev) => ({ ...prev, content: data }));
-  };
-
-  const updateQuestion = async () => {
-    try {
-      await authAPIs().patch(
-        `${endpoints["test-question"](testId)}${editingQuestion.id}/`,
-        {
-          content: editingQuestion.content,
-          type: editingQuestion.type,
-        }
-      );
-      setQuestions(
-        questions.map((q) =>
-          q.id === editingQuestion.id ? editingQuestion : q
-        )
-      );
-      setEditingQuestion(null);
-    } catch (err) {
-      console.error("Error updating question:", err);
-      setError("Không thể cập nhật câu hỏi.");
-    }
-  };
-
-  const addQuestion = async () => {
-    try {
-      const response = await authAPIs().post(
-        endpoints["test-question"](testId),
-        {
-          content: newQuestion.content,
-          type: testInfo.test_type, // Ensure essay type
-        }
-      );
-      setQuestions([...questions, response.data]);
-      setNewQuestion({ content: "", type: testInfo.test_type });
-    } catch (err) {
-      console.error("Error adding question:", err);
-      setError("Không thể thêm câu hỏi.");
-    }
-  };
-
   return (
-    <div>
-      <h1>Bài kiểm tra tự luận</h1>
-      {testInfo ? (
-        <div>
-          <p>
-            <strong>Tên bài kiểm tra:</strong> {testInfo.name}
-          </p>
-          <p>
-            <strong>Loại bài kiểm tra:</strong> Tự luận
-          </p>
-          <p>
-            <strong>Số lượng câu hỏi:</strong> {testInfo.num_questions}
-          </p>
-        </div>
-      ) : (
-        <p>Không có thông tin bài kiểm tra</p>
-      )}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-8">
+      <div className="max-w-6xl mx-auto px-6">
+        <Fade in={true} timeout={800}>
+          <div className="mb-8">
+            <Typography
+              variant="h3"
+              className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 font-bold text-center mb-2"
+            >
+              Bài kiểm tra tự luận
+            </Typography>
+            <div className="w-24 h-1 bg-gradient-to-r from-indigo-500 to-purple-500 mx-auto rounded-full"></div>
+          </div>
+        </Fade>
 
-      <h2>Câu hỏi</h2>
-      {loading ? (
-        <Spinner animation="border" />
-      ) : error ? (
-        <Alert variant="danger">{error}</Alert>
-      ) : (
-        <Accordion>
-          {questions.map((question) => (
-            <Accordion.Item key={question.id} eventKey={question.id.toString()}>
-              <Accordion.Header>Câu hỏi {question.id}</Accordion.Header>
-              <Accordion.Body>
-                {editingQuestion && editingQuestion.id === question.id ? (
-                  <Form>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Nội dung câu hỏi:</Form.Label>
-                      <CKEditor
-                        editor={ClassicEditor}
-                        data={editingQuestion.content}
-                        onChange={handleEditorChange}
-                      />
-                    </Form.Group>
-                    <Button variant="primary" onClick={updateQuestion}>
-                      Lưu thay đổi
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      onClick={() => setEditingQuestion(null)}
-                    >
-                      Hủy
-                    </Button>
-                  </Form>
-                ) : (
-                  <>
-                    <div
-                      dangerouslySetInnerHTML={{ __html: question.content }}
-                    />
-                    <div className="d-flex justify-content-between mt-3">
-                      <Button
-                        variant="primary"
-                        onClick={() => handleQuestionEdit(question)}
-                      >
-                        Chỉnh sửa
-                      </Button>
-                      <Button
-                        variant="success"
-                        onClick={() => handleShowOffcanvas(question)}
-                      >
-                        Chấm bài cho học sinh
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </Accordion.Body>
-            </Accordion.Item>
-          ))}
+        <Grow in={true} timeout={1000}>
+          <div className="mb-6">
+            <TestInfo testInfo={testInfo} />
+          </div>
+        </Grow>
 
-          <Accordion.Item eventKey="new-question">
-            <Accordion.Header>Thêm câu hỏi mới</Accordion.Header>
-            <Accordion.Body>
-              <Form>
-                <Form.Group className="mb-3">
-                  <Form.Label>Nội dung câu hỏi:</Form.Label>
-                  <CKEditor
-                    editor={ClassicEditor}
-                    data={newQuestion.content}
-                    onChange={handleNewQuestionEditorChange}
-                  />
-                </Form.Group>
-                <Button variant="primary" onClick={addQuestion}>
-                  Thêm câu hỏi
-                </Button>
-              </Form>
-            </Accordion.Body>
-          </Accordion.Item>
-        </Accordion>
-      )}
+        {error && (
+          <Fade in={!!error} timeout={500}>
+            <Alert severity="error" className="mb-4 rounded-xl">
+              {error}
+            </Alert>
+          </Fade>
+        )}
 
-      {/* Offcanvas for grading */}
-      <Offcanvas
-        show={showOffcanvas}
-        onHide={handleCloseOffcanvas}
-        placement="start"
-      >
-        <Offcanvas.Header closeButton>
-          <Offcanvas.Title>Câu trả lời của học sinh</Offcanvas.Title>
-        </Offcanvas.Header>
-        <Offcanvas.Body>
+        <Fade in={!loading} timeout={1200}>
+          <div>
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <CircularProgress className="text-indigo-600" />
+              </div>
+            ) : (
+              <QuestionInTest
+                questions={questions}
+                setQuestions={setQuestions}
+                testId={testId}
+                testInfo={testInfo}
+                fetchQuestions={fetchQuestions}
+                updateTestInfo={updateTestInfo}
+                handleShowOffcanvas={handleShowOffcanvas}
+              />
+            )}
+          </div>
+        </Fade>
+
+        <Drawer
+          anchor="right"
+          open={showOffcanvas}
+          onClose={() => setShowOffcanvas(false)}
+          PaperProps={{
+            className: "w-full max-w-md p-6 bg-gradient-to-b from-blue-50 to-indigo-50",
+          }}
+        >
+          <Typography
+            variant="h6"
+            className="text-indigo-700 font-bold mb-4"
+          >
+            Câu trả lời của học sinh
+          </Typography>
           {selectedQuestion && (
-            <>
-              <p>
+            <div className="space-y-4">
+              <Typography className="text-gray-700 font-medium">
                 <strong>Câu hỏi:</strong>
-              </p>
+              </Typography>
               <div
                 dangerouslySetInnerHTML={{ __html: selectedQuestion.content }}
+                className="text-gray-600 bg-white p-4 rounded-xl shadow-sm"
               />
-              <hr />
-              <h3>Câu trả lời của học sinh:</h3>
+              <hr className="border-gray-300" />
+              <Typography variant="h6" className="text-gray-800 font-medium">
+                Câu trả lời của học sinh:
+              </Typography>
               {loadingAnswers ? (
-                <Spinner animation="border" />
+                <div className="flex justify-center py-4">
+                  <CircularProgress className="text-indigo-600" />
+                </div>
               ) : error ? (
-                <Alert variant="danger">{error}</Alert>
+                <Alert severity="error" className="rounded-xl">
+                  {error}
+                </Alert>
               ) : studentAnswers.length > 0 ? (
                 studentAnswers.map((answer) => (
-                  <div key={answer.id}>
-                    <p>
+                  <div
+                    key={answer.id}
+                    className="bg-white p-4 rounded-xl shadow-md"
+                  >
+                    <Typography className="text-gray-700 font-medium">
+                      <strong>Học sinh:</strong> {answer.student_name}
+                    </Typography>
+                    <Typography className="text-gray-700 mt-2">
                       <strong>Câu trả lời:</strong>
-                    </p>
+                    </Typography>
                     <div
                       dangerouslySetInnerHTML={{ __html: answer.answer_text }}
+                      className="text-gray-600 bg-gray-50 p-3 rounded-lg"
                     />
-                    <p>
-                      <strong>Điểm:</strong> {answer.score}
-                    </p>
-                    <Button onClick={() => handleGradeAnswer(answer)}>
+                    <Typography className="text-gray-700 mt-2">
+                      <strong>Điểm:</strong> {answer.score || "Chưa chấm"}
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      onClick={() => handleGradeAnswer(answer)}
+                      className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 mt-3 rounded-xl px-4 py-2 shadow-md transform hover:scale-105 transition-all duration-200"
+                    >
                       Chấm điểm
                     </Button>
-                    <hr />
                   </div>
                 ))
               ) : (
-                <p>Chưa có học sinh nộp bài.</p>
+                <Typography className="text-gray-600">
+                  Chưa có học sinh nộp bài.
+                </Typography>
               )}
-            </>
+            </div>
           )}
-        </Offcanvas.Body>
-      </Offcanvas>
+        </Drawer>
 
-      {/* Modal for grading */}
-      <Modal show={showGradingModal} onHide={() => setShowGradingModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>Chấm điểm</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {gradingAnswer && (
-            <>
-              <p>
-                <strong>Học sinh:</strong> {gradingAnswer.student_name}
-              </p>
-              <p>
-                <strong>Câu trả lời:</strong>
-              </p>
-              <div
-                dangerouslySetInnerHTML={{ __html: gradingAnswer.answer_text }}
-              />
-              <Form>
-                <Form.Group>
-                  <Form.Label>Điểm số:</Form.Label>
-                  <Form.Control
-                    type="number"
-                    value={gradingAnswer.score}
-                    onChange={handleScoreChange}
-                  />
-                </Form.Group>
-                <Form.Group>
-                  <Form.Label>Nhận xét:</Form.Label>
+        <Dialog
+          open={showGradingModal}
+          onClose={() => setShowGradingModal(false)}
+          PaperProps={{
+            className: "rounded-2xl shadow-2xl max-w-lg",
+          }}
+        >
+          <DialogTitle className="text-indigo-600 font-bold bg-gradient-to-r from-blue-50 to-indigo-50">
+            Chấm điểm
+          </DialogTitle>
+          <DialogContent className="space-y-4 py-6">
+            {gradingAnswer && (
+              <>
+                <Typography className="text-gray-700 font-medium">
+                  <strong>Học sinh:</strong> {gradingAnswer.student_name}
+                </Typography>
+                <Typography className="text-gray-700 font-medium">
+                  <strong>Câu trả lời:</strong>
+                </Typography>
+                <div
+                  dangerouslySetInnerHTML={{ __html: gradingAnswer.answer_text }}
+                  className="text-gray-600 bg-gray-50 p-4 rounded-xl shadow-sm"
+                />
+                <TextField
+                  fullWidth
+                  label="Điểm số"
+                  type="number"
+                  value={gradingAnswer.score || ""}
+                  onChange={handleScoreChange}
+                  variant="outlined"
+                  className="bg-white rounded-xl"
+                  inputProps={{ min: 0, max: 10 }}
+                />
+                <div>
+                  <Typography className="text-gray-700 font-medium mb-2">
+                    Nhận xét:
+                  </Typography>
                   <CKEditor
                     editor={ClassicEditor}
-                    data={gradingAnswer.teacher_comments}
+                    data={gradingAnswer.teacher_comments || ""}
                     onChange={handleCommentChange}
                   />
-                </Form.Group>
-              </Form>
-            </>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowGradingModal(false)}>
-            Đóng
-          </Button>
-          <Button variant="primary" onClick={submitGrade}>
-            Lưu điểm và nhận xét
-          </Button>
-        </Modal.Footer>
-      </Modal>
+                </div>
+              </>
+            )}
+          </DialogContent>
+          <DialogActions className="p-4 bg-gray-50">
+            <Button
+              onClick={() => setShowGradingModal(false)}
+              className="text-gray-600 hover:bg-gray-100 rounded-xl px-4 py-2"
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={submitGrade}
+              className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 rounded-xl px-6 py-2 shadow-md transform hover:scale-105 transition-all duration-200"
+            >
+              Lưu điểm và nhận xét
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </div>
     </div>
   );
 };

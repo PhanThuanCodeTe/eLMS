@@ -1,27 +1,26 @@
 import React, { useState, useEffect } from "react";
-import {
-  Container,
-  Row,
-  Col,
-  Form,
-  Button,
-  Badge,
-  Dropdown,
-  Spinner,
-  Alert,
-  Card,
-} from "react-bootstrap";
-import { authAPIs, endpoints } from "../../configs/APIs";
 import { useNavigate } from "react-router-dom";
+import { authAPIs, endpoints } from "../../configs/APIs";
+import {
+  TextField,
+  Button,
+  CircularProgress,
+  Alert,
+  Chip,
+  Autocomplete,
+  Card,
+  CardMedia,
+  CardContent,
+  CardActions,
+  Typography,
+} from "@mui/material";
 
 const CourseManage = () => {
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [filteredCategories, setFilteredCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(true);
-  const [submitting, setSubmitting] = useState(false); // Spinner state
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [formData, setFormData] = useState({
@@ -29,26 +28,24 @@ const CourseManage = () => {
     cover_image: null,
     description: "",
   });
-  const [courses, setCourses] = useState([]); // State to store fetched courses
-  const [loadingCourses, setLoadingCourses] = useState(true); // State to track course loading
+  const [courses, setCourses] = useState([]);
+  const [loadingCourses, setLoadingCourses] = useState(true);
 
   const navigate = useNavigate();
 
   const handleEditCourse = (course) => {
-    const courseNameSlug = course.title.toLowerCase().replace(/ /g, "-"); // Create URL-friendly name
+    const courseNameSlug = course.title.toLowerCase().replace(/ /g, "-");
     navigate(`/manage-course/${courseNameSlug}/edit/${course.id}`);
   };
 
-  // Fetch categories from API
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         const response = await authAPIs().get(endpoints["category"]);
         setCategories(response.data);
-        setFilteredCategories(response.data); // Initially show all categories
       } catch (err) {
         console.error("Error fetching categories:", err);
-        setError("Failed to load categories.");
+        setError("Không thể tải danh mục.");
       } finally {
         setLoadingCategories(false);
       }
@@ -56,14 +53,13 @@ const CourseManage = () => {
     fetchCategories();
   }, []);
 
-  // Fetch courses from API
   const fetchCourses = async () => {
     try {
-      const response = await authAPIs().get(endpoints["list-course"]); // Assuming you have an endpoint for fetching courses
-      setCourses(response.data.courses); // Update to access 'courses' key
+      const response = await authAPIs().get(endpoints["list-course"]);
+      setCourses(response.data.courses);
     } catch (err) {
       console.error("Error fetching courses:", err);
-      setError("Failed to load courses.");
+      setError("Không thể tải danh sách khóa học.");
     } finally {
       setLoadingCourses(false);
     }
@@ -73,50 +69,15 @@ const CourseManage = () => {
     fetchCourses();
   }, []);
 
-  // Handle input change
   const handleInputChange = (e) => {
     const { name, value, files } = e.target;
     if (name === "cover_image") {
-      setFormData((prevData) => ({ ...prevData, [name]: files[0] })); // Handle file input
+      setFormData((prevData) => ({ ...prevData, [name]: files[0] }));
     } else {
       setFormData((prevData) => ({ ...prevData, [name]: value }));
     }
   };
 
-  // Handle search and filter categories
-  const handleSearch = (e) => {
-    const term = e.target.value;
-    setSearchTerm(term);
-    if (term === "") {
-      setFilteredCategories(categories);
-      setShowDropdown(false); // Hide dropdown when search is cleared
-    } else {
-      const filtered = categories.filter((category) =>
-        category.name.toLowerCase().includes(term.toLowerCase())
-      );
-      setFilteredCategories(filtered);
-      setShowDropdown(true); // Show dropdown when filtering
-    }
-  };
-
-  // Handle selecting a category
-  const handleCategorySelect = (category) => {
-    if (!selectedCategories.some((cat) => cat.id === category.id)) {
-      setSelectedCategories([...selectedCategories, category]);
-    }
-    setSearchTerm(""); // Reset search term after selection
-    setFilteredCategories(categories); // Reset filtered categories
-    setShowDropdown(false); // Hide dropdown after selection
-  };
-
-  // Handle removing a selected category
-  const handleRemoveCategory = (categoryId) => {
-    setSelectedCategories(
-      selectedCategories.filter((category) => category.id !== categoryId)
-    );
-  };
-
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -133,16 +94,16 @@ const CourseManage = () => {
     );
 
     try {
-      const api = authAPIs(true); // Use authAPIs with authorization header
+      const api = authAPIs(true);
       await api.post(endpoints["create-course"], formDataToSend, {
-        headers: { "Content-Type": "multipart/form-data" }, // Ensure it's sent as form data
+        headers: { "Content-Type": "multipart/form-data" },
       });
       setSuccess("Khóa học đã được tạo thành công, đang chờ duyệt từ ADMIN!");
       setFormData({ title: "", cover_image: null, description: "" });
-      setSelectedCategories([]); // Reset form fields on success
-      fetchCourses(); // Refetch courses to update the list
+      setSelectedCategories([]);
+      fetchCourses();
     } catch (err) {
-      setError("Failed to create course. Please try again.");
+      setError("Không thể tạo khóa học. Vui lòng thử lại.");
       console.error("Error creating course:", err);
     } finally {
       setSubmitting(false);
@@ -150,189 +111,166 @@ const CourseManage = () => {
   };
 
   if (loadingCategories || loadingCourses) {
-    return <p>Loading...</p>;
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <CircularProgress />
+      </div>
+    );
   }
 
   if (error) {
-    return <p>{error}</p>;
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <Alert severity="error">{error}</Alert>
+      </div>
+    );
   }
 
   return (
-    <Container fluid className="mt-5">
-      <Row>
+    <div className="max-w-7xl mx-auto p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl shadow-lg">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Left half: Course list */}
-        <Col md={6}>
-          <h2>Quản lý khóa học</h2>
-          <Row>
+        <div>
+          <h2 className="text-3xl font-bold text-indigo-700 mb-6 animate-pulse">
+            Quản lý khóa học
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {courses.length > 0 ? (
               courses.map((course) => (
-                <Col md={6} key={course.id} className="mb-4">
-                  <Card
-                    className="h-100"
-                    onClick={() => handleEditCourse(course)}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <Card.Img
-                      variant="top"
-                      src={course.cover_image_url}
-                      className="card-img-top"
-                      style={{ objectFit: "cover", height: "200px" }}
-                    />
-                    <Card.Body className="d-flex flex-column">
-                      <Card.Title>{course.title}</Card.Title>
-                      <Card.Text className="flex-grow-1">
-                        {course.description}
-                      </Card.Text>
-                      <Card.Footer className="text-muted">
-                        <div>
-                          <strong>Đã tạo:</strong> {course.created_at}
-                        </div>
-                        <div>
-                          <strong>Trạng thái:</strong>{" "}
-                          {course.is_active
-                            ? "Đang hoạt động"
-                            : "Đang chờ duyệt"}
-                        </div>
-                      </Card.Footer>
-                    </Card.Body>
-                  </Card>
-                </Col>
+                <Card
+                  key={course.id}
+                  className="shadow-md hover:shadow-xl transition-shadow duration-300"
+                  onClick={() => handleEditCourse(course)}
+                >
+                  <CardMedia
+                    component="img"
+                    height="200"
+                    image={course.cover_image_url}
+                    alt={course.title}
+                    className="object-cover h-48 w-full rounded-t-lg"
+                  />
+                  <CardContent className="bg-white">
+                    <Typography variant="h6" className="font-bold text-gray-800">
+                      {course.title}
+                    </Typography>
+                    <Typography variant="body2" className="text-gray-600 mt-2">
+                      {course.description}
+                    </Typography>
+                  </CardContent>
+                  <CardActions className="bg-gray-50 p-4">
+                    <div className="text-sm text-gray-500">
+                      <strong>Đã tạo:</strong> {course.created_at}
+                      <br />
+                      <strong>Trạng thái:</strong>{" "}
+                      {course.is_active ? "Đang hoạt động" : "Đang chờ duyệt"}
+                    </div>
+                  </CardActions>
+                </Card>
               ))
             ) : (
-              <p>Bạn Chưa tạo khóa học nào!</p>
+              <Typography className="text-gray-600">
+                Bạn chưa tạo khóa học nào!
+              </Typography>
             )}
-          </Row>
-        </Col>
+          </div>
+        </div>
 
         {/* Right half: Create course form */}
-        <Col md={6}>
-          <h2>Tạo khóa học</h2>
-          <Form onSubmit={handleSubmit}>
-            <Form.Group controlId="formTitle">
-              <Form.Label>
-                <strong>Tiêu đề:</strong>
-              </Form.Label>
-              <Form.Control
-                type="text"
-                name="title"
-                value={formData.title}
-                onChange={handleInputChange}
-                required
-              />
-            </Form.Group>
-
-            <Form.Group controlId="formCoverImage" className="mt-3">
-              <Form.Label>
-                <strong>Ảnh bìa:</strong>
-              </Form.Label>
-              <Form.Control
+        <div>
+          <h2 className="text-3xl font-bold text-indigo-700 mb-6 animate-pulse">
+            Tạo khóa học
+          </h2>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <TextField
+              fullWidth
+              label="Tiêu đề"
+              name="title"
+              value={formData.title}
+              onChange={handleInputChange}
+              required
+              variant="outlined"
+              className="bg-white rounded-lg"
+              InputProps={{
+                className: "text-gray-700",
+              }}
+            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Ảnh bìa
+              </label>
+              <input
                 type="file"
                 name="cover_image"
                 onChange={handleInputChange}
                 required
+                className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
               />
-            </Form.Group>
-
-            <Form.Group controlId="formDescription" className="mt-3">
-              <Form.Label>
-                <strong>Mô tả:</strong>
-              </Form.Label>
-              <Form.Control
-                as="textarea"
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                rows={3}
-                required
-              />
-            </Form.Group>
-
-            {/* Selected categories */}
-            <h5 className="mt-4">Danh mục:</h5>
-            <div className="mb-3">
-              {selectedCategories.length === 0 ? (
-                <p>Chưa có danh mục nào được chọn.</p>
-              ) : (
-                selectedCategories.map((category) => (
-                  <Badge
-                    key={category.id}
-                    bg="primary"
-                    className="me-2 mb-2"
-                    onClick={() => handleRemoveCategory(category.id)}
-                    style={{ cursor: "pointer" }}
-                  >
-                    {category.name} &times;
-                  </Badge>
-                ))
-              )}
             </div>
-
-            {/* Search and filter categories */}
-            <Form.Group
-              controlId="formCategorySearch"
-              className="position-relative"
-            >
-              <Form.Label>Tìm kiếm danh mục</Form.Label>
-              <Form.Control
-                type="text"
-                placeholder="Nhập tên danh mục"
-                value={searchTerm}
-                onChange={handleSearch}
-                onFocus={() => setShowDropdown(true)} // Show dropdown on input focus
-              />
-              {/* Dropdown showing filtered categories */}
-              {showDropdown && filteredCategories.length > 0 && (
-                <Dropdown.Menu
-                  show
-                  className="w-100 position-absolute"
-                  style={{
-                    maxHeight: "200px",
-                    overflowY: "auto",
-                    top: "100%",
-                    left: 0,
-                  }}
-                >
-                  {filteredCategories.map((category) => (
-                    <Dropdown.Item
-                      key={category.id}
-                      onClick={() => handleCategorySelect(category)}
-                    >
-                      {category.name}
-                    </Dropdown.Item>
-                  ))}
-                </Dropdown.Menu>
+            <TextField
+              fullWidth
+              label="Mô tả"
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              required
+              multiline
+              rows={4}
+              variant="outlined"
+              className="bg-white rounded-lg"
+              InputProps={{
+                className: "text-gray-700",
+              }}
+            />
+            <Autocomplete
+              multiple
+              options={categories}
+              getOptionLabel={(option) => option.name}
+              value={selectedCategories}
+              onChange={(event, newValue) => setSelectedCategories(newValue)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Danh mục"
+                  placeholder="Chọn danh mục"
+                  variant="outlined"
+                  className="bg-white"
+                />
               )}
-            </Form.Group>
-
-            {/* Submit Button */}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => (
+                  <Chip
+                    label={option.name}
+                    {...getTagProps({ index })}
+                    className="bg-indigo-100 text-indigo-700"
+                  />
+                ))
+              }
+              className="bg-white rounded-lg"
+            />
             <Button
-              variant="primary"
               type="submit"
-              className="mt-3"
+              variant="contained"
+              color="primary"
               disabled={submitting}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 transition-colors duration-300"
+              startIcon={submitting && <CircularProgress size={20} />}
             >
-              {submitting ? (
-                <Spinner animation="border" size="sm" />
-              ) : (
-                "Tạo khóa học"
-              )}
+              {submitting ? "Đang tạo..." : "Tạo khóa học"}
             </Button>
-
-            {/* Success and Error Messages */}
             {success && (
-              <Alert variant="success" className="mt-3">
+              <Alert severity="success" className="mt-4">
                 {success}
               </Alert>
             )}
             {error && (
-              <Alert variant="danger" className="mt-3">
+              <Alert severity="error" className="mt-4">
                 {error}
               </Alert>
             )}
-          </Form>
-        </Col>
-      </Row>
-    </Container>
+          </form>
+        </div>
+      </div>
+    </div>
   );
 };
 

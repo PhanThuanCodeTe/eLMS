@@ -23,65 +23,73 @@ const Category = () => {
     fetchCategories();
   }, [selectedLetter]);
 
-  // Scroll to top function
   const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleLetterClick = (letter) => {
     setSelectedLetter(letter);
-    scrollToTop(); // Scroll to top when letter is clicked
+    scrollToTop();
   };
 
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
   const vietnameseLetters = ['Ă', 'Â', 'Đ', 'Ê', 'Ô', 'Ơ', 'Ư'];
+  const allLetters = [...alphabet, ...vietnameseLetters];
 
   return loading ? (
     <Spinner />
   ) : error ? (
-    <p className="text-red-500">Error: {error}</p>
+    <p className="text-red-500 text-center mt-10">Lỗi: {error}</p>
   ) : (
-    <div className="flex p-4">
-      {/* Left Column: Alphabet */}
-      <div className="w-fit p-3 rounded bg-gray-200">
-        {[...alphabet, ...vietnameseLetters].map((letter) => (
-          <p 
-            key={letter} 
-            className={`text-center py-1 text-lg font-semibold cursor-pointer ${selectedLetter === letter ? 'bg-gray-300' : ''}`}
-            onClick={() => handleLetterClick(letter)}
-          >
-            {letter}
-          </p>
-        ))}
+    <div className="flex flex-col md:flex-row p-6 gap-6">
+      {/* Left Sidebar: Alphabet */}
+      <div className="w-full md:w-1/6 bg-white shadow-md rounded-lg p-4">
+        <h3 className="text-xl font-semibold mb-3 text-gray-700 text-center">Chọn chữ cái</h3>
+        <div className="grid grid-cols-6 gap-2">
+          {allLetters.map((letter) => (
+            <button
+              key={letter}
+              className={`text-sm font-medium px-2 py-1 rounded transition-all duration-200
+                ${selectedLetter === letter ? 'bg-blue-600 text-white shadow' : 'bg-gray-100 text-gray-700 hover:bg-blue-100'}`}
+              onClick={() => handleLetterClick(letter)}
+            >
+              {letter}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Right Column: Categories */}
-      <div className="flex-1 px-4">
+      {/* Right Content: Categories */}
+      <div className="flex-1 bg-white shadow-md rounded-lg p-6 overflow-auto">
         {categories.length > 0 ? (
-          Object.keys(categories.reduce((acc, category) => {
-            const firstLetter = category.name[0].toUpperCase();
-            if (!acc[firstLetter]) {
-              acc[firstLetter] = [];
-            }
-            acc[firstLetter].push(category);
-            return acc;
-          }, {})).sort().map((letter) => (
-            <div key={letter} className="mb-6">
-              <h2 className="text-2xl font-bold mb-2">{letter}</h2>
-              <ul>
-                {categories.filter(category => category.name[0].toUpperCase() === letter).map((category) => (
-                  <li key={category.id} className="ml-4 text-base">
-                    {category.name}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))
+          Object.keys(
+            categories.reduce((acc, category) => {
+              const firstLetter = category.name[0].toUpperCase();
+              if (!acc[firstLetter]) acc[firstLetter] = [];
+              acc[firstLetter].push(category);
+              return acc;
+            }, {})
+          )
+            .sort()
+            .map((letter) => (
+              <div key={letter} className="mb-6">
+                <h2 className="text-2xl font-bold text-blue-700 border-b border-gray-200 pb-1 mb-3">{letter}</h2>
+                <ul className="space-y-1 ml-4">
+                  {categories
+                    .filter((cat) => cat.name[0].toUpperCase() === letter)
+                    .map((category) => (
+                      <li
+                        key={category.id}
+                        className="text-gray-800 text-base hover:underline hover:text-blue-600 transition-colors duration-150"
+                      >
+                        {category.name}
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            ))
         ) : (
-          <p>Tôi vẫn chưa thêm danh mục này, xin cảm ơn!</p>
+          <p className="text-gray-500 italic text-center">Tôi vẫn chưa thêm danh mục này, xin cảm ơn!</p>
         )}
       </div>
     </div>

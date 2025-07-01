@@ -1,10 +1,23 @@
 import React from 'react';
+import { CircularProgress, Box } from '@mui/material';
 
 const Spinner = () => {
   return (
-    <div className="flex justify-center items-center">
-      <div className="w-8 h-8 border-4 border-t-4 border-green-500 border-solid rounded-full animate-spin"></div>
-    </div>
+    <Box
+      display="flex"
+      justifyContent="center"
+      alignItems="center"
+      minHeight="100vh"
+      className="bg-gray-50"
+    >
+      <CircularProgress
+        size={40}
+        thickness={4}
+        sx={{
+          color: '#22c55e', // Màu xanh lá tương tự border-green-500
+        }}
+      />
+    </Box>
   );
 };
 

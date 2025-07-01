@@ -1,7 +1,21 @@
 import React, { useEffect, useState } from "react";
-import { Spinner, Alert, Accordion, Button, Modal, Form } from "react-bootstrap";
-import { authAPIs, endpoints } from "../../configs/APIs"; // Adjust the path accordingly
-import { MdSubdirectoryArrowRight } from "react-icons/md"; // Import right arrow icon
+import { authAPIs, endpoints } from "../../configs/APIs";
+import { MdSubdirectoryArrowRight } from "react-icons/md";
+import {
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Typography,
+  Button,
+  CircularProgress,
+  Alert,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+} from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
 const Forum = ({ course }) => {
   const [forumId, setForumId] = useState(null);
@@ -10,18 +24,18 @@ const Forum = ({ course }) => {
   const [error, setError] = useState(null);
   const [replies, setReplies] = useState({});
   const [replyInput, setReplyInput] = useState("");
-  const [showModal, setShowModal] = useState(false); // Modal visibility state
-  const [newPostTitle, setNewPostTitle] = useState(""); // New post title
-  const [newPostBody, setNewPostBody] = useState(""); // New post body
+  const [showModal, setShowModal] = useState(false);
+  const [newPostTitle, setNewPostTitle] = useState("");
+  const [newPostBody, setNewPostBody] = useState("");
 
   useEffect(() => {
     const fetchForumId = async () => {
       try {
         const response = await authAPIs().get(endpoints["forum"](course.id));
-        setForumId(response.data.id); // Assuming the response contains the forum ID
+        setForumId(response.data.id);
       } catch (err) {
         console.error("Error fetching forum ID:", err);
-        setError("Could not load forum ID.");
+        setError("Không thể tải ID diễn đàn.");
       } finally {
         setLoading(false);
       }
@@ -39,10 +53,10 @@ const Forum = ({ course }) => {
 
       try {
         const response = await authAPIs().get(endpoints["forum-post"](forumId));
-        setPosts(response.data); // Assuming the response contains the posts
+        setPosts(response.data);
       } catch (err) {
         console.error("Error fetching forum posts:", err);
-        setError("Could not load forum posts.");
+        setError("Không thể tải bài viết diễn đàn.");
       } finally {
         setLoading(false);
       }
@@ -55,48 +69,46 @@ const Forum = ({ course }) => {
     const fetchReplies = async (postId) => {
       try {
         const response = await authAPIs().get(endpoints["post-reply"](postId));
-        setReplies((prev) => ({ ...prev, [postId]: response.data })); // Store replies indexed by post ID
+        setReplies((prev) => ({ ...prev, [postId]: response.data }));
       } catch (err) {
         console.error(`Error fetching replies for post ${postId}:`, err);
       }
     };
 
-    // Fetch replies for each post
     posts.forEach((post) => {
       fetchReplies(post.id);
     });
   }, [posts]);
 
   const handleReplyChange = (e) => {
-    setReplyInput(e.target.value); // Update the reply input value
+    setReplyInput(e.target.value);
   };
 
   const handleReplySubmit = async (postId) => {
-    if (!replyInput) return; // Don't submit if the input is empty
+    if (!replyInput) return;
 
     try {
       await authAPIs().post(endpoints["post-reply"](postId), {
-        body: replyInput, // Sending the reply input as form data
+        body: replyInput,
       });
 
-      // Optionally, you can fetch the replies again or optimistically update the state
       setReplies((prev) => ({
         ...prev,
         [postId]: [
-          ...prev[postId],
-          { user_full_name: "Bạn", body: replyInput }, // Add the new reply locally
+          ...(prev[postId] || []),
+          { user_full_name: "Bạn", body: replyInput },
         ],
       }));
 
-      setReplyInput(""); // Clear the input field after submission
+      setReplyInput("");
     } catch (err) {
       console.error(`Error submitting reply for post ${postId}:`, err);
-      setError("Could not submit reply.");
+      setError("Không thể gửi phản hồi.");
     }
   };
 
   const handleNewPostSubmit = async () => {
-    if (!newPostTitle || !newPostBody) return; // Don't submit if fields are empty
+    if (!newPostTitle || !newPostBody) return;
 
     try {
       await authAPIs().post(endpoints["forum-post"](forumId), {
@@ -104,122 +116,164 @@ const Forum = ({ course }) => {
         body: newPostBody,
       });
 
-      setShowModal(false); // Close modal after successful submission
-      setNewPostTitle(""); // Clear the inputs
+      setShowModal(false);
+      setNewPostTitle("");
       setNewPostBody("");
-      // Optionally refetch posts or optimistically add the new post to the list
-      setPosts([...posts, { title: newPostTitle, body: newPostBody }]); // Add the new post locally
+      setPosts([...posts, { title: newPostTitle, body: newPostBody }]);
     } catch (err) {
       console.error("Error submitting new post:", err);
-      setError("Could not submit new post.");
+      setError("Không thể gửi bài viết mới.");
     }
   };
 
   if (loading) {
-    return <Spinner animation="border" />;
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <CircularProgress />
+      </div>
+    );
   }
 
   if (error) {
-    return <Alert variant="danger">{error}</Alert>;
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <Alert severity="error">{error}</Alert>
+      </div>
+    );
   }
 
   return (
-    <div>
-      <div className="d-flex justify-between">
-        <h2>Diễn đàn của {course.title}</h2>
-        <Button className="btn btn-success mr-3" onClick={() => setShowModal(true)}>
+    <div className="max-w-5xl mx-auto p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl shadow-lg">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-3xl font-bold text-indigo-700 animate-pulse">
+          Diễn đàn của {course.title}
+        </h2>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={() => setShowModal(true)}
+          className="bg-green-600 hover:bg-green-700 transition-colors duration-300"
+        >
           Thêm câu hỏi
         </Button>
       </div>
-      <Accordion className="m-3">
+
+      <div className="space-y-4">
         {posts.length > 0 ? (
           posts.map((post, index) => (
-            <Accordion.Item key={post.id} eventKey={index.toString()}>
-              <Accordion.Header>{post.title}</Accordion.Header>
-              <Accordion.Body>
-                <p>
-                  <strong>{post.body}</strong>
-                </p>
+            <Accordion
+              key={post.id}
+              className="shadow-md rounded-lg bg-white hover:shadow-xl transition-shadow duration-300"
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                className="bg-indigo-50 hover:bg-indigo-100 transition-colors duration-200"
+              >
+                <Typography className="font-semibold text-indigo-700">
+                  {post.title}
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails className="p-4">
+                <Typography className="font-medium text-gray-800 mb-4">
+                  {post.body}
+                </Typography>
                 {replies[post.id] && replies[post.id].length > 0 ? (
-                  <div>
+                  <div className="space-y-3">
                     {replies[post.id].map((reply) => (
                       <div
                         key={reply.id}
-                        className="d-flex align-items-start my-3"
+                        className="flex items-start bg-gray-100 p-3 rounded-lg"
                       >
                         <MdSubdirectoryArrowRight
-                          style={{ marginRight: "10px", color: "black" }}
+                          className="mr-2 text-gray-600 mt-1"
                         />
-                        <div className="bg-gray-100 rounded p-3 flex-grow-1">
-                          <strong>{reply.user_full_name}:</strong>{" "}
-                          <div className="ml-2">{reply.body}</div>
+                        <div>
+                          <Typography className="font-semibold text-gray-700">
+                            {reply.user_full_name}:
+                          </Typography>
+                          <Typography className="text-gray-600">
+                            {reply.body}
+                          </Typography>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p>Chưa có phản hồi nào cho bài viết này.</p>
+                  <Typography className="text-gray-500">
+                    Chưa có phản hồi nào cho bài viết này.
+                  </Typography>
                 )}
-                <div className="d-flex">
-                  <input
-                    type="text"
+                <div className="flex mt-4 space-x-2">
+                  <TextField
+                    fullWidth
                     placeholder="Nhập câu trả lời"
-                    className="flex-grow-1 p-2 mr-1"
                     value={replyInput}
                     onChange={handleReplyChange}
+                    variant="outlined"
+                    className="bg-white"
                   />
                   <Button
-                    className="btn btn-primary"
+                    variant="contained"
+                    color="primary"
                     onClick={() => handleReplySubmit(post.id)}
+                    className="bg-indigo-600 hover:bg-indigo-700 transition-colors duration-300"
                   >
                     Đăng câu trả lời
                   </Button>
                 </div>
-              </Accordion.Body>
-            </Accordion.Item>
+              </AccordionDetails>
+            </Accordion>
           ))
         ) : (
-          <p>Chưa có bài viết nào trong diễn đàn này.</p>
+          <Typography className="text-gray-600">
+            Chưa có bài viết nào trong diễn đàn này.
+          </Typography>
         )}
-      </Accordion>
+      </div>
 
-      {/* Modal for adding a new post */}
-      <Modal show={showModal} onHide={() => setShowModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>Thêm câu hỏi mới</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form>
-            <Form.Group controlId="newPostTitle">
-              <Form.Label>Tiêu đề</Form.Label>
-              <Form.Control
-                type="text"
-                placeholder="Nhập tiêu đề"
-                value={newPostTitle}
-                onChange={(e) => setNewPostTitle(e.target.value)}
-              />
-            </Form.Group>
-            <Form.Group controlId="newPostBody">
-              <Form.Label>Nội dung</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                placeholder="Nhập nội dung"
-                value={newPostBody}
-                onChange={(e) => setNewPostBody(e.target.value)}
-              />
-            </Form.Group>
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>
+      <Dialog open={showModal} onClose={() => setShowModal(false)}>
+        <DialogTitle className="text-indigo-700 font-bold">
+          Thêm câu hỏi mới
+        </DialogTitle>
+        <DialogContent className="space-y-4">
+          <TextField
+            fullWidth
+            label="Tiêu đề"
+            placeholder="Nhập tiêu đề"
+            value={newPostTitle}
+            onChange={(e) => setNewPostTitle(e.target.value)}
+            variant="outlined"
+            className="bg-white"
+          />
+          <TextField
+            fullWidth
+            label="Nội dung"
+            placeholder="Nhập nội dung"
+            value={newPostBody}
+            onChange={(e) => setNewPostBody(e.target.value)}
+            multiline
+            rows={4}
+            variant="outlined"
+            className="bg-white"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setShowModal(false)}
+            color="secondary"
+            className="text-gray-600 hover:text-gray-800"
+          >
             Hủy
           </Button>
-          <Button variant="primary" onClick={handleNewPostSubmit}>
+          <Button
+            onClick={handleNewPostSubmit}
+            color="primary"
+            className="bg-indigo-600 text-white hover:bg-indigo-700"
+          >
             Đăng câu hỏi
           </Button>
-        </Modal.Footer>
-      </Modal>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };
