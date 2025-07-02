@@ -27,7 +27,12 @@ SECRET_KEY = 'django-insecure--1&6h771k$s!&#bjwb=tye59pbo=v+j!6o4p(&@$g)!53k%cgj
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'elms-efoe.onrender.com',
+    os.getenv('RENDER_EXTERNAL_HOSTNAME', ''),
+]
 
 AUTH_USER_MODEL = 'LMS.User'
 
