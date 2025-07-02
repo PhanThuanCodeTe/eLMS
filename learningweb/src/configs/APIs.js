@@ -2,6 +2,7 @@ import axios from "axios";
 import cookie from "react-cookies";
 
 const BASE_URL = process.env.REACT_APP_BACKEND_URL;
+console.log("backend url: ", BASE_URL);
 
 export const endpoints = {
     "category": "/categories",
