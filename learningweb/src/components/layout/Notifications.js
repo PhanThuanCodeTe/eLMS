@@ -56,7 +56,7 @@ const Notification = () => {
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
       <Typography variant="h4" gutterBottom>
-        User Notifications
+        Không có thông báo mới
       </Typography>
 
       <Stack spacing={2}>
