@@ -152,10 +152,10 @@ const Module = ({ courseId }) => {
     }
   };
 
-  const confirmDeleteModule = (moduleId) => {
-    setModuleToDelete(moduleId);
-    setShowDeleteModuleModal(true);
-  };
+  // const confirmDeleteModule = (moduleId) => {
+  //   setModuleToDelete(moduleId);
+  //   setShowDeleteModuleModal(true);
+  // };
 
   const deleteModule = async () => {
     if (!moduleToDelete) return;
@@ -452,7 +452,7 @@ const Module = ({ courseId }) => {
         aria-labelledby="delete-module-dialog"
       >
         <DialogTitle sx={{ color: 'error.main' }}>
-          ⚠️ Xác nhận xóa Module
+        Xác nhận xóa Module
         </DialogTitle>
         <DialogContent>
           <DialogContentText>

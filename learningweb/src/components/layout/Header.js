@@ -1,4 +1,4 @@
-import React, { useState, lazy, Suspense } from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Avatar,
@@ -16,7 +16,6 @@ import {
   Chip,
   Fade,
   Backdrop,
-  CircularProgress,
 } from "@mui/material";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import MenuIcon from "@mui/icons-material/Menu";
@@ -25,6 +24,8 @@ import { authAPIs, endpoints } from "../../configs/APIs";
 import Logo from "../../assets/Image/Logo.png";
 import LockResetIcon from "@mui/icons-material/LockReset";
 import CloseIcon from "@mui/icons-material/Close";
+import CircularProgress from "@mui/material/CircularProgress";
+import Notification from "./Notifications";
 import PersonIcon from "@mui/icons-material/Person";
 import SchoolIcon from "@mui/icons-material/School";
 import ManageAccountsIcon from "@mui/icons-material/ManageAccounts";
@@ -32,9 +33,6 @@ import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import HomeIcon from "@mui/icons-material/Home";
 import CategoryIcon from "@mui/icons-material/Category";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-
-// Lazy load Notification để giảm tải ban đầu
-const Notification = lazy(() => import("./Notifications"));
 
 const Header = () => {
   const { user, loading, logout } = useUser();
@@ -55,7 +53,7 @@ const Header = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setPasswords((prev) => ({ ...prev, [name]: value }));
-    if (error) setError(null);
+    if (error) setError(null); // Clear error when user types
   };
 
   const handleChangePassword = async () => {
@@ -98,6 +96,14 @@ const Header = () => {
     }
   };
 
+  const handleUserMenuOpen = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleUserMenuClose = () => {
+    setAnchorEl(null);
+  };
+
   const userMenuOpen = Boolean(anchorEl);
 
   const navigationLinks = [
@@ -116,6 +122,7 @@ const Header = () => {
       <header className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white shadow-xl border-b border-slate-700/50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
+            {/* Logo & Navigation */}
             <div className="flex items-center space-x-8">
               <Link to="/" className="flex items-center space-x-3 group">
                 <div className="relative">
@@ -147,6 +154,7 @@ const Header = () => {
               </nav>
             </div>
 
+            {/* Right section */}
             <div className="flex items-center space-x-4">
               {loading ? (
                 <div className="flex items-center space-x-2">
@@ -155,16 +163,18 @@ const Header = () => {
                 </div>
               ) : user ? (
                 <>
+                  {/* Notifications */}
                   <IconButton
                     onClick={() => setShowDrawer(true)}
                     className="text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-200"
                     size="medium"
                   >
-                    <Badge variant="dot" color="error" className="animate-pulse">
+                    <Badge badgeContent={3} color="error" className="animate-pulse">
                       <NotificationsIcon />
                     </Badge>
                   </IconButton>
 
+                  {/* User Menu */}
                   <div className="flex items-center space-x-3">
                     <div className="hidden sm:block text-right">
                       <div className="text-sm font-medium text-white">
@@ -176,7 +186,7 @@ const Header = () => {
                     </div>
 
                     <IconButton
-                      onClick={(e) => setAnchorEl(e.currentTarget)}
+                      onClick={handleUserMenuOpen}
                       className="ring-2 ring-blue-400/30 hover:ring-blue-400/60 transition-all duration-300"
                       size="small"
                     >
@@ -190,10 +200,11 @@ const Header = () => {
                     </IconButton>
                   </div>
 
+                  {/* Enhanced User Menu */}
                   <Menu
                     anchorEl={anchorEl}
                     open={userMenuOpen}
-                    onClose={() => setAnchorEl(null)}
+                    onClose={handleUserMenuClose}
                     anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
                     transformOrigin={{ vertical: "top", horizontal: "right" }}
                     PaperProps={{
@@ -202,6 +213,7 @@ const Header = () => {
                     }}
                     TransitionComponent={Fade}
                   >
+                    {/* User Info Header */}
                     <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-100">
                       <div className="flex items-center space-x-3">
                         <Avatar src={user.avatar} className="w-12 h-12">
@@ -221,12 +233,13 @@ const Header = () => {
                       </div>
                     </div>
 
+                    {/* Menu Items */}
                     {userMenuItems.map((item, index) => (
                       <MenuItem
                         key={index}
                         component={Link}
                         to={item.to}
-                        onClick={() => setAnchorEl(null)}
+                        onClick={handleUserMenuClose}
                         className="px-4 py-3 hover:bg-gray-50 transition-colors duration-200"
                       >
                         <div className="flex items-center space-x-3">
@@ -238,10 +251,11 @@ const Header = () => {
 
                     <Divider className="my-1" />
 
+                    {/* Password Change */}
                     <MenuItem
                       onClick={() => {
                         setShowPasswordModal(true);
-                        setAnchorEl(null);
+                        handleUserMenuClose();
                       }}
                       className="px-4 py-3 hover:bg-gray-50 transition-colors duration-200"
                     >
@@ -251,6 +265,7 @@ const Header = () => {
                       </div>
                     </MenuItem>
 
+                    {/* Logout */}
                     <MenuItem
                       onClick={logout}
                       className="px-4 py-3 hover:bg-red-50 transition-colors duration-200 text-red-600"
@@ -264,19 +279,30 @@ const Header = () => {
                 </>
               ) : (
                 <div className="flex items-center space-x-2">
-                  <Link to="/login" className="group relative px-4 py-2 rounded-lg font-medium text-gray-300 transition-all duration-500 ease-out overflow-hidden">
+                  <Link
+                    to="/login"
+                    className="group relative px-4 py-2 rounded-lg font-medium text-gray-300 transition-all duration-500 ease-out overflow-hidden"
+                  >
                     <span className="relative z-10 group-hover:text-white">Đăng nhập</span>
                     <div className="absolute inset-x-0 bottom-0 h-0 group-hover:h-full bg-gradient-to-t from-blue-600 to-purple-600 transition-[height] duration-500 ease-out" />
                   </Link>
-                  <Link to="/register" className="group relative px-4 py-2 rounded-lg font-medium text-gray-300 transition-all duration-500 ease-out overflow-hidden">
+
+                  <Link
+                    to="/register"
+                    className="group relative px-4 py-2 rounded-lg font-medium text-gray-300 transition-all duration-500 ease-out overflow-hidden"
+                  >
                     <span className="relative z-10 group-hover:text-white">Đăng ký</span>
                     <div className="absolute inset-x-0 bottom-0 h-0 group-hover:h-full bg-gradient-to-t from-blue-600 to-purple-600 transition-[height] duration-500 ease-out" />
                   </Link>
                 </div>
               )}
 
+              {/* Mobile menu button */}
               <div className="md:hidden">
-                <IconButton onClick={() => setMobileMenuOpen(true)} className="text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-200">
+                <IconButton
+                  onClick={() => setMobileMenuOpen(true)}
+                  className="text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-200"
+                >
                   <MenuIcon />
                 </IconButton>
               </div>
@@ -285,7 +311,7 @@ const Header = () => {
         </div>
       </header>
 
-      {/* Notification Drawer (lazy loaded content) */}
+      {/* Enhanced Notification Drawer */}
       <Drawer
         anchor="right"
         open={showDrawer}
@@ -299,6 +325,7 @@ const Header = () => {
         }}
       >
         <Box className="h-full">
+          {/* Header */}
           <div className="p-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
@@ -307,21 +334,202 @@ const Header = () => {
                   Thông báo
                 </Typography>
               </div>
-              <IconButton onClick={() => setShowDrawer(false)} className="text-white hover:bg-white/20" size="small">
+              <IconButton
+                onClick={() => setShowDrawer(false)}
+                className="text-white hover:bg-white/20"
+                size="small"
+              >
                 <CloseIcon />
               </IconButton>
             </div>
           </div>
 
+          {/* Content */}
           <div className="flex-1 p-4">
-            <Suspense fallback={<div className="text-center text-gray-500">Đang tải thông báo...</div>}>
-              <Notification />
-            </Suspense>
+            <Notification />
           </div>
         </Box>
       </Drawer>
 
-      {/* Các phần còn lại (modal đổi mật khẩu và mobile drawer) giữ nguyên không thay đổi */}
+      {/* Enhanced Password Change Modal */}
+      <Modal
+        open={showPasswordModal}
+        onClose={() => !updating && setShowPasswordModal(false)}
+        closeAfterTransition
+        BackdropComponent={Backdrop}
+        BackdropProps={{
+          timeout: 500,
+          className: "backdrop-blur-sm bg-black/30"
+        }}
+      >
+        <Fade in={showPasswordModal}>
+          <Box className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md mx-4">
+            <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl overflow-hidden">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-white/20 rounded-lg">
+                      <LockResetIcon />
+                    </div>
+                    <div>
+                      <Typography variant="h6" fontWeight={600}>
+                        Đổi mật khẩu
+                      </Typography>
+                      <Typography variant="body2" className="opacity-90">
+                        Cập nhật mật khẩu bảo mật
+                      </Typography>
+                    </div>
+                  </div>
+                  {!updating && (
+                    <IconButton
+                      onClick={() => setShowPasswordModal(false)}
+                      className="text-white hover:bg-white/20"
+                      size="small"
+                    >
+                      <CloseIcon />
+                    </IconButton>
+                  )}
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="p-6">
+                {success ? (
+                  <div className="text-center py-8">
+                    <CheckCircleIcon className="text-green-500 text-6xl mb-4" />
+                    <Typography variant="h6" className="text-green-600 mb-2">
+                      Đổi mật khẩu thành công!
+                    </Typography>
+                    <Typography variant="body2" className="text-gray-600">
+                      Mật khẩu của bạn đã được cập nhật.
+                    </Typography>
+                  </div>
+                ) : (
+                  <>
+                    <Typography variant="body2" className="text-gray-600 mb-6">
+                      Vui lòng nhập mật khẩu hiện tại và mật khẩu mới bạn muốn thay đổi.
+                    </Typography>
+
+                    <div className="space-y-4">
+                      <TextField
+                        fullWidth
+                        label="Mật khẩu hiện tại"
+                        type="password"
+                        name="current_password"
+                        value={passwords.current_password}
+                        onChange={handleInputChange}
+                        required
+                        variant="outlined"
+                        className="bg-white"
+                        disabled={updating}
+                      />
+                      <TextField
+                        fullWidth
+                        label="Mật khẩu mới"
+                        type="password"
+                        name="new_password"
+                        value={passwords.new_password}
+                        onChange={handleInputChange}
+                        required
+                        variant="outlined"
+                        className="bg-white"
+                        disabled={updating}
+                        helperText="Tối thiểu 6 ký tự"
+                      />
+                      <TextField
+                        fullWidth
+                        label="Xác nhận mật khẩu mới"
+                        type="password"
+                        name="confirm_password"
+                        value={passwords.confirm_password}
+                        onChange={handleInputChange}
+                        required
+                        variant="outlined"
+                        className="bg-white"
+                        disabled={updating}
+                      />
+
+                      {error && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                          <Typography variant="body2" className="text-red-600">
+                            {error}
+                          </Typography>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex justify-end space-x-3 mt-8">
+                      <Button
+                        onClick={() => setShowPasswordModal(false)}
+                        disabled={updating}
+                        variant="outlined"
+                        className="px-6"
+                      >
+                        Hủy
+                      </Button>
+                      <Button
+                        onClick={handleChangePassword}
+                        disabled={updating || !passwords.current_password || !passwords.new_password || !passwords.confirm_password}
+                        variant="contained"
+                        className="px-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                        startIcon={updating ? <CircularProgress size={18} color="inherit" /> : null}
+                      >
+                        {updating ? "Đang cập nhật..." : "Cập nhật"}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </Box>
+        </Fade>
+      </Modal>
+
+      {/* Mobile Navigation Drawer */}
+      <Drawer
+        anchor="left"
+        open={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        PaperProps={{
+          className: "bg-slate-900 text-white w-80"
+        }}
+      >
+        <div className="h-full">
+          {/* Header */}
+          <div className="p-6 bg-gradient-to-r from-blue-600 to-purple-600">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <img src={Logo} alt="Logo" className="h-10 w-10 rounded-full" />
+                <span className="font-bold text-xl">EduPlatform</span>
+              </div>
+              <IconButton
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-white hover:bg-white/20"
+                size="small"
+              >
+                <CloseIcon />
+              </IconButton>
+            </div>
+          </div>
+
+          {/* Navigation Links */}
+          <div className="p-4">
+            {navigationLinks.map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center space-x-3 p-3 hover:bg-white/10 rounded-lg transition-all duration-200"
+              >
+                {link.icon}
+                <span className="font-medium">{link.label}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </Drawer>
     </>
   );
 };

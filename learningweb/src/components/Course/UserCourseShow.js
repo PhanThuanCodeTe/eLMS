@@ -31,7 +31,7 @@ import { authAPIs, endpoints } from "../../configs/APIs";
 
 const UserCourseShow = () => {
   const { state: { course } = {} } = useLocation();
-  
+
   // Khởi tạo state với giá trị mặc định để tránh lỗi controlled/uncontrolled
   const [modules, setModules] = useState([]);
   const [loadingModules, setLoadingModules] = useState(true);
@@ -43,8 +43,8 @@ const UserCourseShow = () => {
   const [testError, setTestError] = useState(null);
   const [selectedTest, setSelectedTest] = useState(null);
   const [tabValue, setTabValue] = useState("content");
-  const [confirmDialog, setConfirmDialog] = useState({ 
-    open: false, 
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
     action: null,
     title: "",
     message: ""
@@ -74,11 +74,11 @@ const UserCourseShow = () => {
   // Hàm lấy chi tiết module
   const fetchModuleDetails = useCallback(async (moduleId) => {
     if (!moduleId) return;
-    
+
     setLoadingDetails(true);
     setDetailsError(null);
     setModuleDetails(null); // Reset chi tiết module
-    
+
     try {
       const res = await authAPIs().get(`${endpoints["Module-list"](course.id)}${moduleId}/`);
       setModuleDetails(res.data || null);
@@ -94,11 +94,11 @@ const UserCourseShow = () => {
   // Hàm lấy danh sách bài kiểm tra
   const fetchTests = useCallback(async (moduleId) => {
     if (!moduleId) return;
-    
+
     setLoadingTests(true);
     setTestError(null);
     setTests([]); // Reset tests trước khi fetch
-    
+
     try {
       const res = await authAPIs().get(endpoints["Module-test"](moduleId));
       setTests(res.data || []); // Đảm bảo luôn có array
@@ -115,7 +115,7 @@ const UserCourseShow = () => {
   const handleModuleClick = useCallback(
     (moduleId) => {
       if (!moduleId) return;
-      
+
       if (selectedTest) {
         setConfirmDialog({
           open: true,
@@ -139,7 +139,7 @@ const UserCourseShow = () => {
   const handleTestClick = useCallback(
     (test) => {
       if (!test) return;
-      
+
       if (selectedTest && selectedTest.id !== test.id) {
         setConfirmDialog({
           open: true,
@@ -156,8 +156,8 @@ const UserCourseShow = () => {
 
   // Đóng dialog xác nhận
   const closeDialog = useCallback(() => {
-    setConfirmDialog({ 
-      open: false, 
+    setConfirmDialog({
+      open: false,
       action: null,
       title: "",
       message: ""
@@ -166,8 +166,9 @@ const UserCourseShow = () => {
 
   // Xác nhận hành động trong dialog
   const confirmAction = useCallback(() => {
-    if (confirmDialog.action && typeof confirmDialog.action === 'function') {
-      confirmDialog.action();
+    const action = confirmDialog.action;
+    if (action && typeof action === 'function') {
+      action();
     }
     closeDialog();
   }, [confirmDialog.action, closeDialog]);
@@ -197,7 +198,7 @@ const UserCourseShow = () => {
           <Typography variant="h6" className="font-bold text-gray-800 mb-6">
             Danh sách Module
           </Typography>
-          
+
           {loadingModules ? (
             <div className="flex flex-col items-center py-12">
               <CircularProgress size={40} className="mb-4" />
@@ -241,7 +242,7 @@ const UserCourseShow = () => {
                         </Typography>
                       </div>
                     </AccordionSummary>
-                    
+
                     <AccordionDetails className="bg-blue-50 p-4">
                       {moduleDetails?.id === mod.id && (
                         <div>
@@ -265,9 +266,8 @@ const UserCourseShow = () => {
                                     e.stopPropagation();
                                     handleTestClick(test);
                                   }}
-                                  className={`bg-white rounded-lg p-3 shadow hover:shadow-md cursor-pointer transition-all duration-300 ${
-                                    selectedTest?.id === test.id ? 'ring-2 ring-blue-500 bg-blue-50' : ''
-                                  }`}
+                                  className={`bg-white rounded-lg p-3 shadow hover:shadow-md cursor-pointer transition-all duration-300 ${selectedTest?.id === test.id ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+                                    }`}
                                 >
                                   <div className="flex items-center space-x-3">
                                     <Avatar className="bg-gradient-to-br from-orange-400 to-red-500 text-white">
@@ -347,14 +347,14 @@ const UserCourseShow = () => {
             <div className="grid grid-cols-12 gap-6">
               <div className={selectedTest ? "col-span-12 lg:col-span-9" : "col-span-12 lg:col-span-8"}>
                 {selectedTest ? (
-                  <TestDetails 
-                    test={selectedTest} 
+                  <TestDetails
+                    test={selectedTest}
                     moduleDetails={moduleDetails}
                     handleModuleClick={handleModuleClick}
                     onTestComplete={() => setSelectedTest(null)}
                   />
                 ) : (
-                  <ModuleContent 
+                  <ModuleContent
                     course={course}
                     moduleDetails={moduleDetails}
                     loadingDetails={loadingDetails}
@@ -378,8 +378,8 @@ const UserCourseShow = () => {
           </Fade>
         )}
 
-        <Dialog 
-          open={confirmDialog.open} 
+        <Dialog
+          open={confirmDialog.open}
           onClose={closeDialog}
           maxWidth="sm"
           fullWidth
@@ -387,13 +387,13 @@ const UserCourseShow = () => {
             className: "rounded-xl shadow-2xl"
           }}
         >
-          <DialogTitle 
+          <DialogTitle
             className="bg-gradient-to-r from-red-500 to-pink-600 text-white text-center py-4"
-            sx={{ 
-              '& .MuiTypography-root': { 
-                fontSize: '1.25rem', 
-                fontWeight: 'bold' 
-              } 
+            sx={{
+              '& .MuiTypography-root': {
+                fontSize: '1.25rem',
+                fontWeight: 'bold'
+              }
             }}
           >
             {confirmDialog.title || "Xác nhận"}
@@ -401,22 +401,22 @@ const UserCourseShow = () => {
           <DialogContent className="p-6 text-center">
             <div className="py-4">
               <Typography>
-              {confirmDialog.message || "Bạn có chắc chắn muốn thực hiện hành động này?"}
-            </Typography>
+                {confirmDialog.message || "Bạn có chắc chắn muốn thực hiện hành động này?"}
+              </Typography>
             </div>
           </DialogContent>
           <DialogActions className="p-4 gap-3">
-            <MuiButton 
-              variant="contained" 
+            <MuiButton
+              variant="contained"
               onClick={closeDialog}
               color="error"
               className="flex-1 py-2 rounded-lg"
             >
               Hủy
             </MuiButton>
-            <MuiButton 
-              color="primary" 
-              variant="contained" 
+            <MuiButton
+              color="primary"
+              variant="contained"
               onClick={confirmAction}
               className="flex-1 py-2 rounded-lg"
             >

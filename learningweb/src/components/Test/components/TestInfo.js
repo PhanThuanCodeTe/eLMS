@@ -1,6 +1,6 @@
 import React from 'react';
 import { Typography, Card, CardContent, Chip, Box } from '@mui/material';
-import { Quiz, Assignment, Numbers } from '@mui/icons-material';
+import { Quiz, Assignment } from '@mui/icons-material';
 
 const TestInfo = ({ testInfo }) => {
   const getTestTypeIcon = (type) => {

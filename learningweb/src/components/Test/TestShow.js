@@ -8,7 +8,6 @@ import {
   Checkbox, 
   FormControlLabel,
   Chip,
-  Divider
 } from "@mui/material";
 import { 
   Quiz as QuizIcon,
@@ -101,7 +100,7 @@ const TestShow = ({ test }) => {
     if (questions.length) {
       fetchAnswersAndScore();
     }
-  }, [questions.length, test.id]);
+  }, [questions, test.id]);
 
   const handleRadioSelectionChange = (questionId, answerId) => {
     setUserSelections((prev) => ({

@@ -7,6 +7,10 @@ const Category = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedLetter, setSelectedLetter] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [courses, setCourses] = useState([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+  const [coursesError, setCoursesError] = useState(null);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -23,18 +27,41 @@ const Category = () => {
     fetchCategories();
   }, [selectedLetter]);
 
+  const fetchCoursesByCategory = async (categoryId) => {
+    setCoursesLoading(true);
+    setCoursesError(null);
+    try {
+      const response = await authAPIs().get(`${endpoints.category}/${categoryId}/courses/`);
+      setCourses(response.data.courses);
+    } catch (err) {
+      setCoursesError(err.message || "Không thể tải danh sách khóa học");
+    } finally {
+      setCoursesLoading(false);
+    }
+  };
+
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleLetterClick = (letter) => {
     setSelectedLetter(letter);
+    setSelectedCategory(null); // Reset danh mục được chọn khi đổi chữ cái
+    setCourses([]); // Reset danh sách khóa học
     scrollToTop();
   };
 
+  const handleCategoryClick = (category) => {
+    if (selectedCategory && selectedCategory.id === category.id) {
+      setSelectedCategory(null); // Nếu click lại vào danh mục đang chọn, ẩn danh sách khóa học
+      setCourses([]);
+    } else {
+      setSelectedCategory(category);
+      fetchCoursesByCategory(category.id); // Gọi API để lấy khóa học
+    }
+  };
+
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-  const vietnameseLetters = ['Ă', 'Â', 'Đ', 'Ê', 'Ô', 'Ơ', 'Ư'];
-  const allLetters = [...alphabet, ...vietnameseLetters];
 
   return loading ? (
     <Spinner />
@@ -46,7 +73,7 @@ const Category = () => {
       <div className="w-full md:w-1/6 bg-white shadow-md rounded-lg p-4">
         <h3 className="text-xl font-semibold mb-3 text-gray-700 text-center">Chọn chữ cái</h3>
         <div className="grid grid-cols-6 gap-2">
-          {allLetters.map((letter) => (
+          {alphabet.map((letter) => (
             <button
               key={letter}
               className={`text-sm font-medium px-2 py-1 rounded transition-all duration-200
@@ -59,7 +86,7 @@ const Category = () => {
         </div>
       </div>
 
-      {/* Right Content: Categories */}
+      {/* Right Content: Categories and Courses */}
       <div className="flex-1 bg-white shadow-md rounded-lg p-6 overflow-auto">
         {categories.length > 0 ? (
           Object.keys(
@@ -78,12 +105,39 @@ const Category = () => {
                   {categories
                     .filter((cat) => cat.name[0].toUpperCase() === letter)
                     .map((category) => (
-                      <li
-                        key={category.id}
-                        className="text-gray-800 text-base hover:underline hover:text-blue-600 transition-colors duration-150"
-                      >
-                        {category.name}
-                      </li>
+                      <div key={category.id}>
+                        <li
+                          className={`text-gray-800 text-base hover:underline hover:text-blue-600 transition-colors duration-150 cursor-pointer ${
+                            selectedCategory && selectedCategory.id === category.id ? 'font-bold text-blue-600' : ''
+                          }`}
+                          onClick={() => handleCategoryClick(category)}
+                        >
+                          {category.name}
+                        </li>
+                        {/* Hiển thị danh sách khóa học nếu danh mục được chọn */}
+                        {selectedCategory && selectedCategory.id === category.id && (
+                          <div className="ml-6 mt-2">
+                            {coursesLoading ? (
+                              <Spinner />
+                            ) : coursesError ? (
+                              <p className="text-red-500 text-sm">Lỗi: {coursesError}</p>
+                            ) : courses.length > 0 ? (
+                              <ul className="space-y-1">
+                                {courses.map((course) => (
+                                  <li
+                                    key={course.id}
+                                    className="text-gray-700 text-sm hover:text-blue-500 transition-colors duration-150"
+                                  >
+                                    {course.title}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="text-gray-500 italic text-sm">Không có khóa học nào trong danh mục này.</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     ))}
                 </ul>
               </div>

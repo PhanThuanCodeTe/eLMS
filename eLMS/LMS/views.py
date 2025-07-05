@@ -306,6 +306,26 @@ class CategoryListView(viewsets.ReadOnlyModelViewSet):
 
         return queryset
 
+    @action(detail=True, methods=['get'], url_path='courses')
+    def getallcoursefromcategory(self, request, pk=None):
+        """Retrieve all courses belonging to a specific category."""
+        try:
+            category = Category.objects.get(id=pk)
+        except Category.DoesNotExist:
+            return Response({"error": "Category not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Get all courses associated with the category
+        courses = Course.objects.filter(categories=category, is_active=True)
+        
+        # Serialize the course data
+        serializer = CourseSerializer(courses, many=True)
+        response_data = {
+            'category': category.name,
+            'courses': serializer.data
+        }
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+
 
 class ModuleViewSet(viewsets.ModelViewSet):
     def get_permissions(self):

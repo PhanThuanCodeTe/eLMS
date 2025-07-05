@@ -1,5 +1,5 @@
 import React from "react";
-import { BookOpen, Users, Star, Clock, X, User } from "lucide-react";
+import { BookOpen, Users, Star, Clock, X} from "lucide-react";
 
 const CoursesSection = ({
     courses,

@@ -12,7 +12,6 @@ import {
   DialogContent,
   DialogActions,
   Typography,
-  Link as MuiLink,
   Box,
   IconButton,
 } from "@mui/material";
@@ -21,7 +20,6 @@ import { authAPIs, endpoints } from "../../configs/APIs";
 import CloseIcon from "@mui/icons-material/Close";
 import CameraAltIcon from "@mui/icons-material/CameraAlt";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import CelebrationIcon from "@mui/icons-material/Celebration";
 import CheckIcon from "@mui/icons-material/Check";
 
 const Register = () => {
@@ -80,7 +78,7 @@ const Register = () => {
 
   const validateTab = (tab) => {
     const errs = {};
-    
+
     if (tab === 0) {
       if (!formData.email) {
         errs.email = "Bạn chưa điền email";
@@ -105,7 +103,7 @@ const Register = () => {
 
   const handleButtonClick = async (e) => {
     e.preventDefault();
-    
+
     if (tabValue === 0) {
       if (validateTab(0)) {
         setTabValue(1);
@@ -155,7 +153,7 @@ const Register = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600 p-4 animate-fade-in">
-      <div className="w-full max-w-md bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-white/20 animate-slide-up">
+      <div className="w-full max-w-md bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-white/20 animate-slide-up hover:scale-105 duration-300">
         <div className="text-center mb-8">
           <Typography
             variant="h4"
@@ -171,18 +169,16 @@ const Register = () => {
         <div className="flex mb-8 bg-gray-100 rounded-2xl p-1">
           <button
             onClick={() => handleTabChange(0)}
-            className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300 transform hover:scale-105 ${
-              tabValue === 0 ? "bg-white text-indigo-600 shadow-lg" : "text-gray-500 hover:text-gray-700"
-            }`}
+            className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300 transform hover:scale-105 ${tabValue === 0 ? "bg-white text-indigo-600 shadow-lg" : "text-gray-500 hover:text-gray-700"
+              }`}
             aria-label="Chuyển sang tab thông tin tài khoản"
           >
             Thông Tin Tài Khoản
           </button>
           <button
             onClick={() => handleTabChange(1)}
-            className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300 transform hover:scale-105 ${
-              tabValue === 1 ? "bg-white text-indigo-600 shadow-lg" : "text-gray-500 hover:text-gray-700"
-            }`}
+            className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300 transform hover:scale-105 ${tabValue === 1 ? "bg-white text-indigo-600 shadow-lg" : "text-gray-500 hover:text-gray-700"
+              }`}
             aria-label="Chuyển sang tab thông tin cá nhân"
           >
             Thông Tin Cá Nhân
@@ -389,13 +385,9 @@ const Register = () => {
         <div className="text-center mt-8 pt-6 border-t border-gray-100 animate-fade-in-up">
           <Typography className="text-sm text-gray-600">
             Đã có tài khoản?{" "}
-            <MuiLink
-              component={Link}
-              to="/login"
-              className="text-indigo-600 hover:text-indigo-800 font-semibold transition-colors duration-300 no-underline hover:underline"
-            >
+            <Link to="/login" className="text-blue-600 hover:text-blue-800 font-semibold transition-colors">
               Đăng nhập ngay
-            </MuiLink>
+            </Link>
           </Typography>
         </div>
       </div>
@@ -409,9 +401,9 @@ const Register = () => {
         aria-describedby="dialog-success-description"
       >
         <DialogTitle className="text-center pt-8">
-          <CheckCircleIcon sx={{ fontSize: 64, color: "#10b981", mb: 2 }} className="mx-auto animate-bounce" />
+          <CheckCircleIcon className="mx-auto animate-bounce" />
           <Typography variant="h5" className="font-bold text-gray-800">
-            Chúc Mừng! <CelebrationIcon sx={{ fontSize: 24, verticalAlign: "middle" }} />
+            Chúc Mừng!
           </Typography>
         </DialogTitle>
         <DialogContent className="text-center px-8">
