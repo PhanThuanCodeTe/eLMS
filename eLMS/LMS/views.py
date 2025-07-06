@@ -180,7 +180,7 @@ class CourseListView(viewsets.GenericViewSet, ListModelMixin):
     permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
-        queryset = Course.objects.all()
+        queryset = Course.objects.filter(is_active=True)
         user = self.request.user
 
         # Filter by authenticated teacher

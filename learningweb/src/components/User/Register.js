@@ -401,7 +401,6 @@ const Register = () => {
         aria-describedby="dialog-success-description"
       >
         <DialogTitle className="text-center pt-8">
-          <CheckCircleIcon className="mx-auto animate-bounce" />
           <Typography variant="h5" className="font-bold text-gray-800">
             Chúc Mừng!
           </Typography>
