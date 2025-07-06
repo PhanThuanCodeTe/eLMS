@@ -180,12 +180,13 @@ class CourseListView(viewsets.GenericViewSet, ListModelMixin):
     permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
-        queryset = Course.objects.filter(is_active=True)
         user = self.request.user
+        # Base queryset for non-authors: only active courses
+        queryset = Course.objects.filter(is_active=True)
 
-        # Filter by authenticated teacher
+        # If user is authenticated and a teacher, include their own inactive courses
         if user.is_authenticated and user.role == 1:  # Teacher
-            queryset = queryset.filter(author=user)
+            queryset = queryset | Course.objects.filter(author=user, is_active=False)
 
         # Filtering by a single keyword across title, description, category, and author name
         keyword = self.request.query_params.get('q', None)
@@ -201,7 +202,7 @@ class CourseListView(viewsets.GenericViewSet, ListModelMixin):
         # Sort by created_at descending to get the latest courses
         sort_by = self.request.query_params.get('sort', None)
         if sort_by == 'latest':
-            queryset = queryset.order_by('-created_at')  # Sort by latest created
+            queryset = queryset.order_by('-created_at')
 
         return queryset
 
