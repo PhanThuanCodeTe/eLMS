@@ -156,13 +156,14 @@ const UserInfo = () => {
       {/* Modal sửa thông tin */}
       <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth>
         <DialogTitle>Thay đổi thông tin cá nhân</DialogTitle>
-        <DialogContent className="space-y-4">
+        <DialogContent className="space-y-4 my-4">
           <TextField
             fullWidth
             label="Họ"
             name="first_name"
             value={formData.first_name}
             onChange={handleChange}
+            className="mt-2"
           />
           <TextField
             fullWidth

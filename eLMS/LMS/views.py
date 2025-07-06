@@ -361,16 +361,22 @@ class ModuleViewSet(viewsets.ModelViewSet):
 
 
 class UserCourseMembershipView(viewsets.ViewSet):
-    permission_classes = [permissions.IsAuthenticated]  # Ensure only authenticated users can access
+    permission_classes = [permissions.IsAuthenticated]
 
     def list(self, request):
         # Fetch courses where the current user is a member
         memberships = CourseMembership.objects.filter(user=request.user, is_active=True)
-        courses = [membership.course for membership in memberships]
+        member_courses = [membership.course for membership in memberships]
 
-        # Use CourseSerializer to return course details
+        # Fetch courses where the current user is the author
+        author_courses = Course.objects.filter(author=request.user, is_active=True)
+
+        # Combine and remove duplicates (in case user is both author and member)
+        courses = list(set(member_courses + list(author_courses)))
+
+        # Serialize the course data
         serializer = CourseSerializer(courses, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=200)
 
 
 class CourseMembershipViewSet(viewsets.ViewSet):
