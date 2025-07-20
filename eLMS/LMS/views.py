@@ -180,36 +180,40 @@ class CourseListView(viewsets.GenericViewSet, ListModelMixin):
     permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
-        user = self.request.user
-        # Base queryset for non-authors: only active courses
+    user = self.request.user
+    
+    # Check if ?author parameter is provided
+    author_filter = self.request.query_params.get('author', None)
+    
+    if author_filter and user.is_authenticated:
+        # If author filter is requested, return courses authored by the user
+        # Include both active and inactive courses for the author
+        queryset = Course.objects.filter(author=user)
+    else:
+        # Default behavior: show active courses
         queryset = Course.objects.filter(is_active=True)
-
-        # If user is authenticated and a teacher, include their own inactive courses
+        
+        # If user is authenticated and a teacher, also include their own inactive courses
         if user.is_authenticated and user.role == 1:  # Teacher
             queryset = queryset | Course.objects.filter(author=user, is_active=False)
 
-        # Filter by author if ?author is provided
-        author_filter = self.request.query_params.get('author', None)
-        if author_filter and user.is_authenticated:
-            queryset = Course.objects.filter(author=user)
+    # Apply keyword search filter
+    keyword = self.request.query_params.get('q', None)
+    if keyword:
+        queryset = queryset.filter(
+            Q(title__icontains=keyword) |
+            Q(description__icontains=keyword) |
+            Q(categories__name__icontains=keyword) |
+            Q(author__first_name__icontains=keyword) |
+            Q(author__last_name__icontains=keyword)
+        ).distinct()
 
-        # Filtering by a single keyword across title, description, category, and author name
-        keyword = self.request.query_params.get('q', None)
-        if keyword:
-            queryset = queryset.filter(
-                Q(title__icontains=keyword) |
-                Q(description__icontains=keyword) |
-                Q(categories__name__icontains=keyword) |
-                Q(author__first_name__icontains=keyword) |
-                Q(author__last_name__icontains=keyword)
-            ).distinct()
+    # Apply sorting
+    sort_by = self.request.query_params.get('sort', None)
+    if sort_by == 'latest':
+        queryset = queryset.order_by('-created_at')
 
-        # Sort by created_at descending to get the latest courses
-        sort_by = self.request.query_params.get('sort', None)
-        if sort_by == 'latest':
-            queryset = queryset.order_by('-created_at')
-
-        return queryset
+    return queryset
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
