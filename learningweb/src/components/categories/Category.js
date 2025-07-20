@@ -18,7 +18,7 @@ const Category = () => {
         const response = await authAPIs().get(`${endpoints.category}?letter=${encodeURIComponent(selectedLetter)}`);
         setCategories(response.data);
       } catch (err) {
-        setError(err.message || "An error occurred");
+        setError(err.message || "Có lỗi xảy ra");
       } finally {
         setLoading(false);
       }
@@ -45,7 +45,9 @@ const Category = () => {
   };
 
   const handleLetterClick = (letter) => {
-    setSelectedLetter(letter);
+    // Nếu bấm lại chữ cái đang chọn, đặt lại selectedLetter về rỗng để hiển thị tất cả danh mục
+    const newLetter = selectedLetter === letter ? '' : letter;
+    setSelectedLetter(newLetter);
     setSelectedCategory(null);
     setCourses([]);
     scrollToTop();
@@ -64,9 +66,7 @@ const Category = () => {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
   return loading ? (
-    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <Spinner />
-    </div>
   ) : error ? (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex justify-center items-center">
       <div className="bg-white p-8 rounded-2xl shadow-lg border border-red-200">
@@ -87,7 +87,7 @@ const Category = () => {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-800 mb-4">
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600"> Danh mục</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Danh mục</span>
           </h1>
         </div>
 
@@ -95,7 +95,6 @@ const Category = () => {
           {/* Left Sidebar: Alphabet */}
           <div className="lg:w-80 w-full">
             <div className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl p-6 border border-white/20 sticky top-8">
-              
               <div className="grid grid-cols-6 gap-2">
                 {alphabet.map((letter) => (
                   <button

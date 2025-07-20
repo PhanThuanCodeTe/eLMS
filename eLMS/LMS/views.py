@@ -188,6 +188,11 @@ class CourseListView(viewsets.GenericViewSet, ListModelMixin):
         if user.is_authenticated and user.role == 1:  # Teacher
             queryset = queryset | Course.objects.filter(author=user, is_active=False)
 
+        # Filter by author if ?author is provided
+        author_filter = self.request.query_params.get('author', None)
+        if author_filter and user.is_authenticated:
+            queryset = Course.objects.filter(author=user)
+
         # Filtering by a single keyword across title, description, category, and author name
         keyword = self.request.query_params.get('q', None)
         if keyword:

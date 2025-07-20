@@ -120,26 +120,26 @@ const CourseManage = () => {
 
   if (error) {
     return (
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="w-full mx-auto p-6">
         <Alert severity="error">{error}</Alert>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl shadow-lg">
+    <div className="w-full mx-auto p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl shadow-lg">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Left half: Course list */}
         <div>
           <h2 className="text-3xl font-bold text-indigo-700 mb-6 animate-pulse">
             Quản lý khóa học
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {courses.length > 0 ? (
               courses.map((course) => (
                 <Card
                   key={course.id}
-                  className="shadow-md hover:shadow-xl transition-shadow duration-300"
+                  className="shadow-md hover:shadow-xl transition-shadow duration-300 flex flex-col h-[400px] w-full"
                   onClick={() => handleEditCourse(course)}
                 >
                   <CardMedia
@@ -149,11 +149,17 @@ const CourseManage = () => {
                     alt={course.title}
                     className="object-cover h-48 w-full rounded-t-lg"
                   />
-                  <CardContent className="bg-white">
-                    <Typography variant="h6" className="font-bold text-gray-800">
+                  <CardContent className="bg-white flex-grow">
+                    <Typography
+                      variant="h6"
+                      className="font-bold text-gray-800 line-clamp-2"
+                    >
                       {course.title}
                     </Typography>
-                    <Typography variant="body2" className="text-gray-600 mt-2">
+                    <Typography
+                      variant="body2"
+                      className="text-gray-600 mt-2 line-clamp-3"
+                    >
                       {course.description}
                     </Typography>
                   </CardContent>
