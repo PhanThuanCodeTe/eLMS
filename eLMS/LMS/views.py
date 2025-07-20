@@ -182,20 +182,12 @@ class CourseListView(viewsets.GenericViewSet, ListModelMixin):
     def get_queryset(self):
         user = self.request.user
         
-        # Check if ?author parameter is provided
-        author_filter = self.request.query_params.get('author', None)
+        # Default behavior: show active courses
+        queryset = Course.objects.filter(is_active=True)
         
-        if author_filter and user.is_authenticated:
-            # If author filter is requested, return courses authored by the user
-            # Include both active and inactive courses for the author
-            queryset = Course.objects.filter(author=user)
-        else:
-            # Default behavior: show active courses
-            queryset = Course.objects.filter(is_active=True)
-            
-            # If user is authenticated and a teacher, also include their own inactive courses
-            if user.is_authenticated and user.role == 1:  # Teacher
-                queryset = queryset | Course.objects.filter(author=user, is_active=False)
+        # If user is authenticated and a teacher, also include their own inactive courses
+        if user.is_authenticated and user.role == 1:  # Teacher
+            queryset = queryset | Course.objects.filter(author=user, is_active=False)
 
         # Apply keyword search filter
         keyword = self.request.query_params.get('q', None)
@@ -225,6 +217,43 @@ class CourseListView(viewsets.GenericViewSet, ListModelMixin):
         }
 
         return Response(response_data)
+
+    @action(detail=False, methods=['get'], url_path='author', permission_classes=[IsAuthenticated])
+    def author_courses(self, request):
+        """
+        Get courses authored by the current authenticated user.
+        Endpoint: /courses/author/
+        """
+        user = request.user
+        
+        # Get courses authored by the user (both active and inactive)
+        queryset = Course.objects.filter(author=user)
+        
+        # Apply keyword search filter if provided
+        keyword = request.query_params.get('q', None)
+        if keyword:
+            queryset = queryset.filter(
+                Q(title__icontains=keyword) |
+                Q(description__icontains=keyword) |
+                Q(categories__name__icontains=keyword)
+            ).distinct()
+
+        # Apply sorting
+        sort_by = request.query_params.get('sort', None)
+        if sort_by == 'latest':
+            queryset = queryset.order_by('-created_at')
+        else:
+            queryset = queryset.order_by('-created_at')  # Default sort by latest
+
+        serializer = self.get_serializer(queryset, many=True)
+        
+        response_data = {
+            'q': keyword,
+            'total': queryset.count(),
+            'courses': serializer.data,
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 class CourseCreateView(viewsets.ModelViewSet):
