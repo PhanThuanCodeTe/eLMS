@@ -55,7 +55,7 @@ const CourseManage = () => {
 
   const fetchCourses = async () => {
     try {
-      const response = await authAPIs().get(endpoints["list-course"]);
+      const response = await authAPIs().get(endpoints["author-course"]);
       setCourses(response.data.courses);
     } catch (err) {
       console.error("Error fetching courses:", err);

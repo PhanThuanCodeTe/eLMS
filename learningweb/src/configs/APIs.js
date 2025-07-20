@@ -13,6 +13,7 @@ export const endpoints = {
     "forget-password-get-code": "/password-reset/request_passcode/",
     "forget-password-change-password": "/password-reset/reset_password/",
     "list-course": "/courses",
+    "author-course": "/courses/author",
     "create-course": "/create-course/",
     "course-detail":(id) => `/courses/${id}`,
     "Module-list": (courseId) => `/courses/${courseId}/module/`,
