@@ -141,15 +141,16 @@ const UserInfo = () => {
               <b>Vai trò:</b> <span>{user.role === 1 ? 'Giáo viên' : 'Học viên'}</span>
             </Box>
           </Box>
-          <Button
+          <div className="mt-6">
+            <Button
             variant="contained"
             color="primary"
             startIcon={<EditIcon />}
-            className="mt-6"
             onClick={() => setEditOpen(true)}
           >
             Cập nhật thông tin
           </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -163,7 +164,7 @@ const UserInfo = () => {
             name="first_name"
             value={formData.first_name}
             onChange={handleChange}
-            className="mt-2"
+            sx={{ marginTop: 2 }}
           />
           <TextField
             fullWidth

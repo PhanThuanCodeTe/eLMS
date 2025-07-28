@@ -15,6 +15,9 @@ const Home = () => {
     const [showModal, setShowModal] = useState(false);
     const [joinSuccess, setJoinSuccess] = useState(null);
 
+    // Check if user is currently searching
+    const isSearching = searchQuery.trim() !== "";
+
     // Function to fetch courses with an optional query
     const fetchCourses = async (query = "") => {
         try {
@@ -101,7 +104,8 @@ const Home = () => {
                 joinSuccess={joinSuccess}
                 joinCourse={joinCourse}
             />
-            <AboutSection />
+            {/* Chỉ hiển thị AboutSection khi không đang tìm kiếm */}
+            {!isSearching && <AboutSection />}
         </div>
     );
 };

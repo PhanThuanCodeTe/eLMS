@@ -322,12 +322,18 @@ const UserCourseShow = () => {
               value={tabValue}
               onChange={handleTabChange}
               className="border-b border-gray-200"
+              variant="fullWidth"
               sx={{
+                '& .MuiTabs-flexContainer': {
+                  width: '100%',
+                },
                 '& .MuiTab-root': {
                   fontSize: '1.125rem',
                   fontWeight: 600,
                   textTransform: 'none',
                   minHeight: 60,
+                  flex: 1,
+                  maxWidth: 'none',
                   '&.Mui-selected': {
                     background: 'linear-gradient(135deg, #3B82F6, #6366F1)',
                     color: 'white',

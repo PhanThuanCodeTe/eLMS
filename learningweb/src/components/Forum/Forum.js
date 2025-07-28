@@ -128,7 +128,7 @@ const Forum = ({ course }) => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen">
+      <div className="flex justify-center items-center min-h-[400px]">
         <CircularProgress />
       </div>
     );
@@ -136,62 +136,76 @@ const Forum = ({ course }) => {
 
   if (error) {
     return (
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="max-w-4xl mx-auto p-4 sm:p-6">
         <Alert severity="error">{error}</Alert>
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl shadow-lg">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-indigo-700 animate-pulse">
-          Diễn đàn của {course.title}
-        </h2>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={() => setShowModal(true)}
-          className="bg-green-600 hover:bg-green-700 transition-colors duration-300"
-        >
-          Thêm câu hỏi
-        </Button>
+    <div className="max-w-5xl mx-auto p-4 sm:p-6 bg-gray-50 rounded-lg">
+      {/* Header section với responsive design */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="flex-1 min-w-0">
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 break-words">
+            Diễn đàn: {course.title}
+          </h2>
+        </div>
+        <div className="flex-shrink-0">
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => setShowModal(true)}
+            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200"
+            size="medium"
+          >
+            <span className="hidden sm:inline">Thêm câu hỏi</span>
+            <span className="sm:hidden">Thêm</span>
+          </Button>
+        </div>
       </div>
 
+      {/* Posts section */}
       <div className="space-y-4">
         {posts.length > 0 ? (
           posts.map((post, index) => (
             <Accordion
               key={post.id}
-              className="shadow-md rounded-lg bg-white hover:shadow-xl transition-shadow duration-300"
+              className="shadow-sm rounded-lg bg-white border border-gray-200 hover:shadow-md transition-shadow duration-200"
             >
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
-                className="bg-indigo-50 hover:bg-indigo-100 transition-colors duration-200"
+                className="bg-gray-50 hover:bg-gray-100 transition-colors duration-200 px-4 py-3"
               >
-                <Typography className="font-semibold text-indigo-700">
+                <Typography className="font-semibold text-gray-800 text-sm sm:text-base break-words pr-4">
                   {post.title}
                 </Typography>
               </AccordionSummary>
-              <AccordionDetails className="p-4">
-                <Typography className="font-medium text-gray-800 mb-4">
+              <AccordionDetails className="p-4 sm:p-6">
+                <Typography className="text-gray-700 mb-4 text-sm sm:text-base leading-relaxed">
                   {post.body}
                 </Typography>
+                
+                {/* Replies section */}
                 {replies[post.id] && replies[post.id].length > 0 ? (
-                  <div className="space-y-3">
+                  <div className="space-y-3 mb-4">
+                    <Typography className="font-medium text-gray-600 text-sm">
+                      Phản hồi:
+                    </Typography>
                     {replies[post.id].map((reply) => (
                       <div
                         key={reply.id}
-                        className="flex items-start bg-gray-100 p-3 rounded-lg"
+                        className="flex items-start bg-gray-50 p-3 rounded-md border-l-4 border-blue-200"
                       >
                         <MdSubdirectoryArrowRight
-                          className="mr-2 text-gray-600 mt-1"
+                          className="mr-2 text-gray-500 mt-1 flex-shrink-0"
+                          size={16}
                         />
-                        <div>
-                          <Typography className="font-semibold text-gray-700">
+                        <div className="min-w-0 flex-1">
+                          <Typography className="font-medium text-gray-700 text-sm">
                             {reply.user_full_name}:
                           </Typography>
-                          <Typography className="text-gray-600">
+                          <Typography className="text-gray-600 text-sm break-words">
                             {reply.body}
                           </Typography>
                         </div>
@@ -199,76 +213,93 @@ const Forum = ({ course }) => {
                     ))}
                   </div>
                 ) : (
-                  <Typography className="text-gray-500">
+                  <Typography className="text-gray-500 text-sm mb-4">
                     Chưa có phản hồi nào cho bài viết này.
                   </Typography>
                 )}
-                <div className="flex mt-4 space-x-2">
+                
+                {/* Reply input section */}
+                <div className="flex flex-col sm:flex-row gap-2">
                   <TextField
                     fullWidth
                     placeholder="Nhập câu trả lời"
                     value={replyInput}
                     onChange={handleReplyChange}
                     variant="outlined"
+                    size="small"
                     className="bg-white"
+                    multiline
+                    minRows={1}
+                    maxRows={3}
                   />
                   <Button
                     variant="contained"
                     color="primary"
                     onClick={() => handleReplySubmit(post.id)}
-                    className="bg-indigo-600 hover:bg-indigo-700 transition-colors duration-300"
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 whitespace-nowrap"
+                    size="small"
                   >
-                    Đăng câu trả lời
+                    Trả lời
                   </Button>
                 </div>
               </AccordionDetails>
             </Accordion>
           ))
         ) : (
-          <Typography className="text-gray-600">
-            Chưa có bài viết nào trong diễn đàn này.
-          </Typography>
+          <div className="text-center py-8 bg-white rounded-lg shadow-sm border border-gray-200">
+            <Typography className="text-gray-500">
+              Chưa có bài viết nào trong diễn đàn này.
+            </Typography>
+          </div>
         )}
       </div>
 
-      <Dialog open={showModal} onClose={() => setShowModal(false)}>
-        <DialogTitle className="text-indigo-700 font-bold">
+      {/* Modal for new post */}
+      <Dialog 
+        open={showModal} 
+        onClose={() => setShowModal(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          className: "m-4"
+        }}
+      >
+        <DialogTitle className="text-gray-800 font-semibold border-b border-gray-200 pb-2">
           Thêm câu hỏi mới
         </DialogTitle>
-        <DialogContent className="space-y-4">
+        <DialogContent className="space-y-4 pt-4">
           <TextField
             fullWidth
             label="Tiêu đề"
-            placeholder="Nhập tiêu đề"
+            placeholder="Nhập tiêu đề câu hỏi"
             value={newPostTitle}
             onChange={(e) => setNewPostTitle(e.target.value)}
             variant="outlined"
-            className="bg-white"
+            size="small"
           />
           <TextField
             fullWidth
             label="Nội dung"
-            placeholder="Nhập nội dung"
+            placeholder="Nhập nội dung chi tiết"
             value={newPostBody}
             onChange={(e) => setNewPostBody(e.target.value)}
             multiline
             rows={4}
             variant="outlined"
-            className="bg-white"
+            size="small"
           />
         </DialogContent>
-        <DialogActions>
+        <DialogActions className="p-4 border-t border-gray-200">
           <Button
             onClick={() => setShowModal(false)}
-            color="secondary"
-            className="text-gray-600 hover:text-gray-800"
+            className="text-gray-600 hover:text-gray-800 font-medium"
           >
             Hủy
           </Button>
           <Button
             onClick={handleNewPostSubmit}
-            color="primary"
-            className="bg-indigo-600 text-white hover:bg-indigo-700"
+            variant="contained"
+            className="bg-blue-600 text-white hover:bg-blue-700 font-medium ml-2"
           >
             Đăng câu hỏi
           </Button>

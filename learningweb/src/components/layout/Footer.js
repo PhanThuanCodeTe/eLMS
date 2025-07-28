@@ -19,6 +19,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button, TextField, Box, Typography, Modal, IconButton } from "@mui/material";
+import { useUser } from "../Context/UserContext";
 
 const Footer = () => {
   const [showModal, setShowModal] = useState(false);
@@ -30,6 +31,18 @@ const Footer = () => {
   const [successMessage, setSuccessMessage] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { user } = useUser();
+
+
+  // Hàm kiểm tra user có phải teacher không
+  const isTeacher = (user) => {
+    return user?.role === 1 || 
+           user?.role === 'teacher' || 
+           user?.is_teacher === true || 
+           user?.user_type === 'teacher' ||
+           user?.type === 'teacher' ||
+           user?.account_type === 'teacher';
+  };
 
   const toggleModal = () => {
     const token = cookie.load("authToken");
@@ -39,6 +52,24 @@ const Footer = () => {
       setShowModal(!showModal);
       setError(null);
       setSuccessMessage(null);
+    }
+  };
+
+  const handleCreateCourse = () => {
+    const token = cookie.load("authToken");
+    if (!token) {
+      navigate("/login");
+    } else {
+      console.log('Is user a teacher?', isTeacher(user));
+      
+      if (isTeacher(user)) {
+        navigate("/manage-course");
+      } else {
+        // Nếu không phải teacher thì mở form đăng ký
+        setShowModal(true);
+        setError(null);
+        setSuccessMessage(null);
+      }
     }
   };
 
@@ -65,6 +96,7 @@ const Footer = () => {
       const response = await api.post(apiUrl, data);
       if (response.status === 201) {
         setSuccessMessage("Đăng ký làm giáo viên thành công!");
+        // Có thể cập nhật lại user context ở đây nếu cần
       }
     } catch (err) {
       setError(err.response?.data?.detail || "Đã xảy ra lỗi. Vui lòng thử lại.");
@@ -100,24 +132,29 @@ const Footer = () => {
               Dành cho giáo viên
             </Typography>
             <Box className="space-y-3">
+              {/* Chỉ hiển thị nút đăng ký nếu chưa đăng nhập hoặc chưa phải là teacher */}
+              {(!user || !isTeacher(user)) && (
+                <Button
+                  onClick={toggleModal}
+                  className="flex items-center text-gray-300 hover:text-blue-400 transition-colors group"
+                >
+                  <Box className="bg-blue-500/20 p-2 rounded-lg mr-3 group-hover:bg-blue-500/30 transition-colors">
+                    <Users className="w-4 h-4" />
+                  </Box>
+                  Đăng ký làm giáo viên
+                </Button>
+              )}
+              
               <Button
-                onClick={toggleModal}
-                className="flex items-center text-gray-300 hover:text-blue-400 transition-colors group"
-              >
-                <Box className="bg-blue-500/20 p-2 rounded-lg mr-3 group-hover:bg-blue-500/30 transition-colors">
-                  <Users className="w-4 h-4" />
-                </Box>
-                Đăng ký làm giáo viên
-              </Button>
-              <Button
-                onClick={() => navigate("/create-course")}
+                onClick={handleCreateCourse}
                 className="flex items-center text-gray-300 hover:text-purple-400 transition-colors group"
               >
                 <Box className="bg-purple-500/20 p-2 rounded-lg mr-3 group-hover:bg-purple-500/30 transition-colors">
                   <BookOpen className="w-4 h-4" />
                 </Box>
-                Tạo khóa học
+                {isTeacher(user) ? 'Quản lý khóa học' : 'Tạo khóa học'}
               </Button>
+              
               <Button
                 onClick={() => navigate("/teaching-guide")}
                 className="flex items-center text-gray-300 hover:text-green-400 transition-colors group"
@@ -314,7 +351,7 @@ const Footer = () => {
                     onChange={handleFileChange}
                     required
                     accept="image/*"
-                    className="w-full text-sm text-gray-700 border-2 border-gray-200 rounded-xl p-4 hover:border-blue-400 focus Ascendancy focus:border-blue-500 focus:outline-none transition-colors file:bg-blue-50 file:border-0 file:px-4 file:py-2 file:rounded-lg file:text-blue-700 file:font-medium hover:file:bg-blue-100"
+                    className="w-full text-sm text-gray-700 border-2 border-gray-200 rounded-xl p-4 hover:border-blue-400 focus:border-blue-500 focus:outline-none transition-colors file:bg-blue-50 file:border-0 file:px-4 file:py-2 file:rounded-lg file:text-blue-700 file:font-medium hover:file:bg-blue-100"
                   />
                 </Box>
                 <Box>
@@ -359,7 +396,7 @@ const Footer = () => {
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="px-8 py-3 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {isLoading && <Loader2 className="w-5 h-5 animate-spin" />}
                   {isLoading ? "Đang gửi..." : "Gửi đăng ký"}

@@ -110,6 +110,14 @@ const CoursesSection = ({
         }
     };
 
+    // Handle backdrop click to close modal
+    const handleBackdropClick = (e) => {
+        // Only close if clicking on the backdrop itself, not the modal content
+        if (e.target === e.currentTarget) {
+            handleCloseModal();
+        }
+    };
+
     // Calculate transform percentage
     const getTransformValue = () => {
         return (currentIndex * 100) / slidesPerView;
@@ -273,7 +281,10 @@ const CoursesSection = ({
 
             {/* Course Detail Modal */}
             {showModal && selectedCourse && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                <div 
+                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+                    onClick={handleBackdropClick}
+                >
                     <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                         <div className="relative">
                             <img
